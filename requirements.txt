@@ -1,5 +1,4 @@
 streamlit
 pandas
 openpyxl
-langdetect
-deep-translator
+google-generativeai
