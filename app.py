@@ -16,78 +16,177 @@ except ImportError:
     instalar("langdetect")
     from langdetect import detect
 
-try:
-    from deep_translator import GoogleTranslator
-except ImportError:
-    instalar("deep-translator")
-    from deep_translator import GoogleTranslator
-
 # ── Diccionario técnico de repuestos maquinaria pesada ────
 DICCIONARIO_TECNICO = {
+    # ── Filtros ──
     "filter": "filtro", "filters": "filtros",
+    "strainer": "colador", "element": "elemento filtrante",
+    "cartridge": "cartucho", "screen": "malla",
+
+    # ── Motor ──
     "engine": "motor", "engines": "motores",
-    "bearing": "rodamiento", "bearings": "rodamientos",
+    "piston": "pistón", "pistons": "pistones",
+    "cylinder": "cilindro", "cylinders": "cilindros",
+    "crankshaft": "cigüeñal", "camshaft": "árbol de levas",
+    "conrod": "biela", "liner": "camisa", "liners": "camisas",
+    "head": "culata", "heads": "culatas",
+    "valve": "válvula", "valves": "válvulas",
+    "rocker": "balancín", "rockers": "balancines",
+    "lifter": "levantaválvulas", "tappet": "taqué",
+    "injector": "inyector", "injectors": "inyectores",
+    "nozzle": "tobera", "nozzles": "toberas",
+    "turbocharger": "turbo cargador",
+    "intake": "admisión", "exhaust": "escape",
+    "manifold": "colector", "muffler": "silenciador",
+    "starter": "motor de arranque",
+    "alternator": "alternador",
+    "flywheel": "volante motor",
+
+    # ── Sellos y juntas ──
     "seal": "sello", "seals": "sellos",
+    "gasket": "junta", "gaskets": "juntas",
+    "o-ring": "junta", "oring": "junta",
+    "o´ring": "junta", "o'ring": "junta",
+    "retainer": "retén", "retainers": "retenes",
+    "wiper": "rascador", "wipers": "rascadores",
+    "lip seal": "sello de labio",
+    "backup ring": "anillo de respaldo",
+
+    # ── Rodamientos y bujes ──
+    "bearing": "rodamiento", "bearings": "rodamientos",
+    "bushing": "buje", "bushings": "bujes",
+    "sleeve": "manguito", "sleeves": "manguitos",
+    "race": "pista", "cone": "cono", "cup": "copa",
+    "roller": "rodillo", "rollers": "rodillos",
+    "needle": "aguja",
+
+    # ── Transmisión y tren de potencia ──
+    "transmission": "transmisión",
+    "differential": "diferencial",
+    "gearbox": "caja de engranajes",
+    "gear": "engranaje", "gears": "engranajes",
     "shaft": "eje", "shafts": "ejes",
+    "axle": "eje", "axles": "ejes",
+    "coupling": "acople", "couplings": "acoples",
+    "clutch": "embrague", "clutches": "embragues",
+    "disc": "disco", "discs": "discos",
+    "brake": "freno", "brakes": "frenos",
+    "sprocket": "rueda dentada", "sprockets": "ruedas dentadas",
+    "chain": "cadena", "chains": "cadenas",
+    "belt": "correa", "belts": "correas",
+    "pulley": "polea", "pulleys": "poleas",
+    "idler": "rueda guía",
+    "planetary": "planetario",
+    "carrier": "portasatélites",
+    "sun gear": "engranaje solar",
+
+    # ── Sistema hidráulico ──
+    "pump": "bomba", "pumps": "bombas",
+    "motor": "motor hidráulico",
+    "cylinder": "cilindro", "cylinders": "cilindros",
+    "hose": "manguera", "hoses": "mangueras",
+    "tube": "tubo", "tubes": "tubos",
+    "pipe": "caño", "pipes": "caños",
+    "fitting": "fitting", "fittings": "fittings",
+    "elbow": "codo", "elbows": "codos",
+    "nipple": "niple", "nipples": "niples",
+    "flange": "brida", "flanges": "bridas",
+    "tee": "tee",
+    "adapter": "adaptador", "adapters": "adaptadores",
+    "connector": "conector", "connectors": "conectores",
+    "relief valve": "válvula de alivio",
+    "check valve": "válvula de retención",
+    "control valve": "válvula de control",
+    "accumulator": "acumulador",
+    "reservoir": "depósito",
+
+    # ── Estructura y carrocería ──
+    "bracket": "soporte", "brackets": "soportes",
+    "plate": "placa", "plates": "placas",
+    "cover": "tapa", "covers": "tapas",
+    "cap": "tapa", "caps": "tapas",
+    "housing": "carcasa", "housings": "carcasas",
+    "frame": "bastidor", "frames": "bastidores",
+    "guard": "protector", "guards": "protectores",
+    "shield": "escudo", "shields": "escudos",
+    "panel": "panel", "panels": "paneles",
+    "door": "puerta", "doors": "puertas",
+    "window": "ventana", "windows": "ventanas",
+    "glass": "vidrio",
+    "mirror": "espejo", "mirrors": "espejos",
+
+    # ── Fijación y sujeción ──
     "bolt": "perno", "bolts": "pernos",
     "nut": "tuerca", "nuts": "tuercas",
     "washer": "arandela", "washers": "arandelas",
-    "gasket": "junta", "gaskets": "juntas",
-    "o-ring": "junta", "oring": "junta", "o´ring": "junta", "o'ring": "junta",
-    "housing": "carcasa", "bracket": "soporte",
-    "bushing": "buje", "bushings": "bujes",
-    "adapter": "adaptador", "adapters": "adaptadores",
-    "pump": "bomba", "pumps": "bombas",
-    "valve": "válvula", "valves": "válvulas",
-    "hose": "manguera", "hoses": "mangueras",
-    "assembly": "conjunto",
-    "cap": "tapa", "cover": "tapa", "covers": "tapas",
-    "ring": "aro", "rings": "aros",
-    "clip": "grapa", "clips": "grapas",
+    "screw": "tornillo", "screws": "tornillos",
     "pin": "pasador", "pins": "pasadores",
-    "gear": "engranaje", "gears": "engranajes",
+    "clip": "grapa", "clips": "grapas",
+    "ring": "aro", "rings": "aros",
+    "snap ring": "anillo elástico",
+    "lock": "traba", "locking": "de traba",
+    "stud": "espárrago", "studs": "espárragos",
+
+    # ── Suspensión y dirección ──
     "spring": "resorte", "springs": "resortes",
-    "sensor": "sensor", "sensors": "sensores",
-    "switch": "interruptor", "switches": "interruptores",
-    "plate": "placa", "plates": "placas",
-    "tube": "tubo", "tubes": "tubos",
+    "shock": "amortiguador", "damper": "amortiguador",
+    "tie rod": "barra de dirección",
+    "steering": "dirección",
+    "knuckle": "mangueta",
+    "link": "eslabón", "links": "eslabones",
+    "arm": "brazo", "arms": "brazos",
     "rod": "vástago", "rods": "vástagos",
-    "piston": "pistón", "pistons": "pistones",
-    "cylinder": "cilindro", "cylinders": "cilindros",
-    "coupling": "acople", "couplings": "acoples",
-    "nozzle": "tobera", "nozzles": "toberas",
-    "injector": "inyector", "injectors": "inyectores",
-    "turbocharger": "turbocompresor",
-    "alternator": "alternador",
-    "starter": "motor de arranque",
-    "radiator": "radiador",
-    "exhaust": "escape", "intake": "admisión",
-    "transmission": "transmisión",
-    "differential": "diferencial",
-    "sprocket": "rueda dentada",
+
+    # ── Tren de rodaje (orugas) ──
+    "track": "oruga", "tracks": "orugas",
+    "shoe": "zapata", "shoes": "zapatas",
+    "pad": "zapata", "pads": "zapatas",
+    "link": "eslabón",
     "idler": "rueda guía",
     "roller": "rodillo",
-    "bucket": "balde",
-    "blade": "cuchilla",
-    "arm": "brazo", "boom": "pluma",
-    "link": "eslabón", "chain": "cadena",
-    "belt": "correa", "pulley": "polea",
-    "vibratory": "vibratorio",
-    "single": "simple", "double": "doble",
-    "drum": "tambor", "smooth": "liso",
-    "asphalt": "asfalto",
-    "allen": "allen", "allem": "allen",
-    "hex": "hexagonal",
-    "elbow": "codo", "nipple": "niple",
-    "flange": "brida",
+    "blade": "cuchilla", "blades": "cuchillas",
+    "bucket": "balde", "buckets": "baldes",
+    "boom": "pluma", "booms": "plumas",
+    "stick": "brazo", "dipper": "brazo",
+
+    # ── Sistema eléctrico ──
+    "switch": "interruptor", "switches": "interruptores",
+    "relay": "relé", "relays": "relés",
+    "fuse": "fusible", "fuses": "fusibles",
+    "sensor": "sensor", "sensors": "sensores",
     "harness": "mazo de cables",
-    "relay": "relé", "fuse": "fusible",
-    "glass": "vidrio",
-    "seat": "asiento", "handle": "manija",
-    "knob": "perilla", "lever": "palanca",
-    "gauge": "indicador",
-    "gp": "grupo", "group": "grupo",
+    "wire": "cable", "wires": "cables",
+    "lamp": "lámpara", "lamps": "lámparas",
+    "gauge": "indicador", "gauges": "indicadores",
+    "lever": "palanca", "levers": "palancas",
+    "knob": "perilla", "knobs": "perillas",
+    "handle": "manija", "handles": "manijas",
+    "seat": "asiento", "seats": "asientos",
+
+    # ── Enfriamiento ──
+    "radiator": "radiador",
+    "fan": "ventilador", "fans": "ventiladores",
+    "thermostat": "termostato",
+    "cooler": "enfriador", "coolers": "enfriadores",
+    "condenser": "condensador",
+    "compressor": "compresor",
+
+    # ── Varios ──
+    "assembly": "conjunto",
+    "kit": "kit",
+    "set": "juego",
+    "group": "grupo", "gp": "grupo",
+    "gp-pr": "grupo de presión",
     "seal_exhaust": "sello de escape",
+    "allem": "allen",
+    "vibratory": "vibratorio",
+    "smooth": "liso",
+    "asphalt": "asfalto",
+    "single": "simple", "double": "doble",
+    "drum": "tambor", "drums": "tambores",
+    "pulley": "polea",
+    "harness": "mazo de cables",
+    "flange": "brida",
 }
 
 PALABRAS_CLAVE = ["KIT", "CONJUNTO", "MANGUERA"]
@@ -163,20 +262,53 @@ def es_marca_o_modelo(palabra):
 def es_medida(palabra):
     return bool(re.match(r'^\d+[\.\-,]?\d*\s*(mm|MM|cm|m|psi|PSI|kg|KG|lb|VCC|VCA|rpm|RPM|pulg|\'|\")?$', palabra))
 
+# Palabras españolas comunes que langdetect puede confundir con inglés
+PALABRAS_ESPANOL_VALIDAS = {
+    "para", "con", "sin", "del", "las", "los", "una", "uso", "tipo",
+    "maza", "tubo", "aros", "buje", "tapa", "eje", "perno", "tuerca",
+    "junta", "sello", "bomba", "motor", "brazo", "pluma", "correa",
+    "cadena", "resorte", "freno", "disco", "placa", "soporte", "carcasa",
+    "filtro", "tobera", "piston", "camisa", "culata", "colector", "polea",
+    "rodillo", "pasador", "grapa", "arandela", "tornillo", "esparrago",
+    "manguera", "cano", "brida", "codo", "niple", "conector", "adaptador",
+    "sensor", "rele", "fusible", "cable", "lampara", "indicador", "palanca",
+    "perilla", "manija", "asiento", "espejo", "vidrio", "puerta", "panel",
+    "ventana", "bastidor", "protector", "acople", "embrague", "diferencial",
+    "transmision", "planetario", "amortiguador", "oruga", "zapata", "eslabon",
+    "cuchilla", "balde", "ventilador", "radiador", "termostato", "enfriador",
+    "rodamiento", "manguito", "pista", "cono", "reten", "rascador",
+    "ciguenial", "biela", "balancin", "volante", "colador", "cartucho",
+    "conjunto", "juego", "grupo", "turbo", "escape", "admision",
+}
+
+IDIOMAS_NOMBRES = {
+    "en": "inglés", "pt": "portugués", "fr": "francés",
+    "de": "alemán", "it": "italiano", "nl": "holandés",
+}
+
 def traducir_token(token):
+    """Traduce si está en diccionario. Si no está y parece otro idioma, alerta."""
     limpio = token.strip('.,;:()/\'"`°-').lower()
+
+    # 1. Está en diccionario → traducir
     if limpio in DICCIONARIO_TECNICO:
-        return DICCIONARIO_TECNICO[limpio], limpio
-    try:
-        if len(limpio) > 3 and re.match(r'^[a-zA-Z]+$', limpio):
+        return DICCIONARIO_TECNICO[limpio], limpio, None
+
+    # 2. Es palabra española conocida → no tocar
+    if limpio in PALABRAS_ESPANOL_VALIDAS:
+        return None, None, None
+
+    # 3. Solo letras, longitud razonable → detectar idioma
+    if len(limpio) > 3 and re.match(r'^[a-zA-Z]+$', limpio):
+        try:
             idioma = detect(limpio)
-            if idioma not in ('es', 'ca', 'pt'):
-                traduccion = GoogleTranslator(source='auto', target='es').translate(limpio)
-                if traduccion and traduccion.lower() != limpio:
-                    return traduccion.lower(), limpio
-    except:
-        pass
-    return None, None
+            if idioma not in ('es', 'ca', 'gl'):
+                nombre_idioma = IDIOMAS_NOMBRES.get(idioma, idioma)
+                return None, None, f"no encontrada en diccionario: {limpio} ({nombre_idioma})"
+        except:
+            pass
+
+    return None, None, None
 
 def procesar_descripcion(descripcion_original):
     errores_encontrados = []
@@ -203,10 +335,13 @@ def procesar_descripcion(descripcion_original):
         if es_marca_o_modelo(token) or es_medida(token):
             tokens_nuevos.append(token)
             continue
-        traduccion, original = traducir_token(token)
+        traduccion, original, alerta = traducir_token(token)
         if traduccion:
             errores_encontrados.append(f"traducido: {original}→{traduccion}")
             tokens_nuevos.append(traduccion)
+        elif alerta:
+            errores_encontrados.append(alerta)
+            tokens_nuevos.append(token)
         else:
             tokens_nuevos.append(token)
 
