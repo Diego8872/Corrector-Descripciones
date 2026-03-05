@@ -316,11 +316,6 @@ Descripciones:
         )
         texto_respuesta = response.choices[0].message.content.strip()
         
-        # Guardar respuesta en session_state para debug
-        if "gemini_debug" not in st.session_state:
-            st.session_state.gemini_debug = []
-        st.session_state.gemini_debug.append(texto_respuesta[:500])
-        
         lineas = texto_respuesta.split("\n")
         resultados = {}
         for linea in lineas:
@@ -333,9 +328,6 @@ Descripciones:
                 resultados[idx] = match.group(2).strip()
         return resultados
     except Exception as e:
-        if "gemini_debug" not in st.session_state:
-            st.session_state.gemini_debug = []
-        st.session_state.gemini_debug.append(f"ERROR: {str(e)}")
         return {}
 
 def separar_palabras_pegadas(texto, modelo=None):
@@ -835,11 +827,6 @@ if archivo:
 
         progress_bar.progress(1.0)
         status_text.markdown("✅ **¡Procesamiento completado!**")
-        
-        # Debug: mostrar respuesta de Gemini
-        if st.session_state.get("gemini_debug"):
-            with st.expander("🔍 Debug Gemini (última respuesta)"):
-                st.code(st.session_state.gemini_debug[-1])
         
         st.divider()
 
