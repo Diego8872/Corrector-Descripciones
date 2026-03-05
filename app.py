@@ -10,20 +10,19 @@ import sys
 def instalar(paquete):
     subprocess.check_call([sys.executable, "-m", "pip", "install", paquete, "-q"])
 
-# Gemini API para separación y traducción contextual
+# Groq API para separación y traducción contextual
 try:
-    import google.generativeai as genai
+    from groq import Groq
 except ImportError:
-    instalar("google-generativeai")
-    import google.generativeai as genai
+    instalar("groq")
+    from groq import Groq
 
 def get_gemini_model():
-    """Inicializa Gemini si hay API key disponible."""
+    """Inicializa Groq si hay API key disponible."""
     try:
-        api_key = st.secrets.get("GEMINI_API_KEY", None)
+        api_key = st.secrets.get("GROQ_API_KEY", None)
         if api_key:
-            genai.configure(api_key=api_key)
-            return genai.GenerativeModel("gemini-2.0-flash")
+            return Groq(api_key=api_key)
     except:
         pass
     return None
@@ -310,8 +309,12 @@ Descripciones:
 {lista}"""
 
     try:
-        response = modelo.generate_content(prompt)
-        texto_respuesta = response.text.strip()
+        response = modelo.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
+        texto_respuesta = response.choices[0].message.content.strip()
         
         # Guardar respuesta en session_state para debug
         if "gemini_debug" not in st.session_state:
