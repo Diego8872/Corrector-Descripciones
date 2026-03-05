@@ -283,28 +283,30 @@ def tiene_palabras_pegadas(texto):
 def procesar_lote_gemini(modelo, descripciones):
     """Manda un lote de descripciones a Gemini para separar y traducir."""
     lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
-    prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, etc).
+    prompt = f"""Eres un experto en repuestos de maquinaria pesada minera (Caterpillar, Komatsu, Volvo, etc).
 
-TAREA: Corregir cada descripción aplicando TODAS estas reglas:
-1. SEPARAR palabras pegadas — ejemplos: "filtrodeaire"→"filtro de aire", "VALVULADEPASAJE"→"Válvula de pasaje", "Placaplanchuela"→"Placa planchuela"
-2. TRADUCIR inglés→español técnico: filter→filtro, bearing→rodamiento, seal→sello, housing→carcasa, bracket→soporte, bushing→buje, shaft→eje, bolt→perno
-3. CORREGIR ortografía: hidaulico→hidráulico, presion→presión, transmision→transmisión
-4. MANTENER sin cambios: marcas (CAT, Caterpillar, SEM), modelos (320C, 140K), medidas (25MM, 4PSI), siglas (VCC, PSI)
+Se te dan descripciones de repuestos donde las palabras están pegadas sin espacios. Tu única tarea es insertar los espacios correctos entre las palabras y corregir ortografía básica.
 
-IMPORTANTE: Aunque la descripción parezca correcta, revisá siempre si tiene palabras pegadas.
-Ejemplos de separación:
-- "VALVULADEPASAJEDEAIRECOMPRIMIDO" → "Válvula de pasaje de aire comprimido"
-- "Placaplanchueladeacero" → "Placa planchuela de acero"
-- "BOMBADEPRELUBRICACION" → "Bomba de prelubricación"
-- "SEGMENTOINTERMEDIODEDIENTEDEPALA" → "Segmento intermedio de diente de pala"
-- "Protectorguardadechapa" → "Protector guarda de chapa"
+REGLAS:
+- Insertar espacios donde corresponde entre palabras
+- Traducir palabras en inglés al español: filter→filtro, seal→sello, bearing→rodamiento, housing→carcasa, bracket→soporte, bushing→buje, shaft→eje, bolt→perno, hose→manguera, valve→válvula
+- Corregir acentos y ortografía: presion→presión, transmision→transmisión, hidraulico→hidráulico, neumatico→neumático, lubricacion→lubricación
+- NO cambiar: marcas (CAT, SEM), modelos (320C), medidas (25MM, 4PSI, VCC), la letra L cuando indica forma
 
-Respondé ÚNICAMENTE con el número y descripción corregida. Sin explicaciones ni comentarios.
-Formato estricto (una línea por descripción):
-1. descripción corregida
-2. descripción corregida
+EJEMPLOS (seguir exactamente este estilo):
+"Biseladodeplastico" → "Biselado de plástico"
+"VALVULADEPASAJEDEAIRECOMPRIMIDO" → "Válvula de pasaje de aire comprimido"
+"Filtroelementodepapelcelulosa" → "Filtro elemento de papel celulosa"
+"PlacaplanchueladeaceroplegadaenL" → "Placa planchuela de acero plegada en L"
+"Hojadecortederecho" → "Hoja de corte derecho"
+"BOMBADEPRELUBRICACION" → "Bomba de prelubricación"
+"SEGMENTOINTERMEDIODEDIENTEDEPALA" → "Segmento intermedio de diente de pala"
 
-Descripciones a corregir:
+FORMATO DE RESPUESTA — solo el número y el texto corregido, una línea por item:
+1. texto corregido aquí
+2. texto corregido aquí
+
+Descripciones:
 {lista}"""
 
     try:
