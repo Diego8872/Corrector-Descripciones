@@ -766,7 +766,7 @@ if archivo:
         # Inicializar Gemini
         modelo_gemini = get_gemini_model()
         if modelo_gemini:
-            st.info("🤖 Gemini AI activado — separación y traducción inteligente")
+            st.info("🤖 IA activada — separación y traducción inteligente")
         else:
             st.warning("⚠️ Sin Gemini — usando modo diccionario")
 
@@ -790,7 +790,7 @@ if archivo:
                     descs_pegadas.append(desc)
             
             # Procesar en lotes de 20
-            LOTE = 20
+            LOTE = 50
             for batch_start in range(0, len(descs_pegadas), LOTE):
                 batch_idx = indices_pegadas[batch_start:batch_start+LOTE]
                 batch_desc = descs_pegadas[batch_start:batch_start+LOTE]
