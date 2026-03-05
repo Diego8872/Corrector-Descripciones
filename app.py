@@ -265,34 +265,46 @@ PALABRAS_SEPARACION = set([
 
 
 def tiene_palabras_pegadas(texto):
-    """Detecta si un texto tiene palabras pegadas (sin espacios o con muy pocos)."""
+    """Detecta si un texto tiene palabras pegadas."""
     palabras = texto.split()
-    if len(palabras) == 1 and len(texto) > 8:
+    # Descripción de una sola palabra larga
+    if len(palabras) == 1 and len(texto) > 6:
         return True
-    # Si alguna palabra tiene más de 15 chars sin números ni símbolos
+    # Alguna palabra larga sin números ni símbolos (probable pegado)
     for p in palabras:
         solo_letras = re.sub(r'[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]', '', p)
-        if len(solo_letras) > 15:
+        if len(solo_letras) > 12:
             return True
+    # Proporción baja de espacios respecto a la longitud (muchas palabras pegadas)
+    if len(texto) > 20 and len(palabras) < len(texto) / 8:
+        return True
     return False
 
 def procesar_lote_gemini(modelo, descripciones):
     """Manda un lote de descripciones a Gemini para separar y traducir."""
     lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
     prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, etc).
-Tenés estas descripciones de artículos en español con palabras pegadas sin espacios y/o términos en inglés.
-Para cada una:
-1. Separar las palabras pegadas correctamente
-2. Traducir términos en inglés al español técnico (filter→filtro, bearing→rodamiento, seal→sello, etc.)
-3. Corregir ortografía obvia
-4. Mantener marcas, modelos, medidas y siglas (CAT, 320C, MM, PSI, VCC)
 
-Respondé SOLO con el número y la descripción corregida, sin explicaciones.
-Formato exacto:
+TAREA: Corregir cada descripción aplicando TODAS estas reglas:
+1. SEPARAR palabras pegadas — ejemplos: "filtrodeaire"→"filtro de aire", "VALVULADEPASAJE"→"Válvula de pasaje", "Placaplanchuela"→"Placa planchuela"
+2. TRADUCIR inglés→español técnico: filter→filtro, bearing→rodamiento, seal→sello, housing→carcasa, bracket→soporte, bushing→buje, shaft→eje, bolt→perno
+3. CORREGIR ortografía: hidaulico→hidráulico, presion→presión, transmision→transmisión
+4. MANTENER sin cambios: marcas (CAT, Caterpillar, SEM), modelos (320C, 140K), medidas (25MM, 4PSI), siglas (VCC, PSI)
+
+IMPORTANTE: Aunque la descripción parezca correcta, revisá siempre si tiene palabras pegadas.
+Ejemplos de separación:
+- "VALVULADEPASAJEDEAIRECOMPRIMIDO" → "Válvula de pasaje de aire comprimido"
+- "Placaplanchueladeacero" → "Placa planchuela de acero"
+- "BOMBADEPRELUBRICACION" → "Bomba de prelubricación"
+- "SEGMENTOINTERMEDIODEDIENTEDEPALA" → "Segmento intermedio de diente de pala"
+- "Protectorguardadechapa" → "Protector guarda de chapa"
+
+Respondé ÚNICAMENTE con el número y descripción corregida. Sin explicaciones ni comentarios.
+Formato estricto (una línea por descripción):
 1. descripción corregida
 2. descripción corregida
 
-Descripciones:
+Descripciones a corregir:
 {lista}"""
 
     try:
