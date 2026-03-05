@@ -311,17 +311,28 @@ Descripciones:
 
     try:
         response = modelo.generate_content(prompt)
-        lineas = response.text.strip().split("\n")
+        texto_respuesta = response.text.strip()
+        
+        # Guardar respuesta en session_state para debug
+        if "gemini_debug" not in st.session_state:
+            st.session_state.gemini_debug = []
+        st.session_state.gemini_debug.append(texto_respuesta[:500])
+        
+        lineas = texto_respuesta.split("\n")
         resultados = {}
         for linea in lineas:
             linea = linea.strip()
             if not linea: continue
-            match = re.match(r'^(\d+)\.\s*(.+)$', linea)
+            # Intentar varios formatos de respuesta
+            match = re.match(r'^(\d+)[\.\)\-\:]\s*(.+)$', linea)
             if match:
                 idx = int(match.group(1)) - 1
                 resultados[idx] = match.group(2).strip()
         return resultados
-    except:
+    except Exception as e:
+        if "gemini_debug" not in st.session_state:
+            st.session_state.gemini_debug = []
+        st.session_state.gemini_debug.append(f"ERROR: {str(e)}")
         return {}
 
 def separar_palabras_pegadas(texto, modelo=None):
@@ -821,6 +832,12 @@ if archivo:
 
         progress_bar.progress(1.0)
         status_text.markdown("✅ **¡Procesamiento completado!**")
+        
+        # Debug: mostrar respuesta de Gemini
+        if st.session_state.get("gemini_debug"):
+            with st.expander("🔍 Debug Gemini (última respuesta)"):
+                st.code(st.session_state.gemini_debug[-1])
+        
         st.divider()
 
         sin_errores = sum(1 for r in resultados if r["errores"] == "Sin errores")
