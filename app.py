@@ -10,7 +10,23 @@ import sys
 def instalar(paquete):
     subprocess.check_call([sys.executable, "-m", "pip", "install", paquete, "-q"])
 
-# Sin langdetect - solo diccionario técnico
+# Gemini API para separación y traducción contextual
+try:
+    import google.generativeai as genai
+except ImportError:
+    instalar("google-generativeai")
+    import google.generativeai as genai
+
+def get_gemini_model():
+    """Inicializa Gemini si hay API key disponible."""
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY", None)
+        if api_key:
+            genai.configure(api_key=api_key)
+            return genai.GenerativeModel("gemini-1.5-flash")
+    except:
+        pass
+    return None
 
 # ── Diccionario técnico de repuestos maquinaria pesada ────
 DICCIONARIO_TECNICO = {
@@ -248,46 +264,93 @@ PALABRAS_SEPARACION = set([
 
 
 
-def separar_palabras_pegadas(texto):
-    """Intenta separar palabras pegadas usando lista de palabras conocidas."""
-    # Si el texto ya tiene espacios normales, no hacer nada
+def tiene_palabras_pegadas(texto):
+    """Detecta si un texto tiene palabras pegadas (sin espacios o con muy pocos)."""
+    palabras = texto.split()
+    if len(palabras) == 1 and len(texto) > 8:
+        return True
+    # Si alguna palabra tiene más de 15 chars sin números ni símbolos
+    for p in palabras:
+        solo_letras = re.sub(r'[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]', '', p)
+        if len(solo_letras) > 15:
+            return True
+    return False
+
+def procesar_lote_gemini(modelo, descripciones):
+    """Manda un lote de descripciones a Gemini para separar y traducir."""
+    lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
+    prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, etc).
+Tenés estas descripciones de artículos en español con palabras pegadas sin espacios y/o términos en inglés.
+Para cada una:
+1. Separar las palabras pegadas correctamente
+2. Traducir términos en inglés al español técnico (filter→filtro, bearing→rodamiento, seal→sello, etc.)
+3. Corregir ortografía obvia
+4. Mantener marcas, modelos, medidas y siglas (CAT, 320C, MM, PSI, VCC)
+
+Respondé SOLO con el número y la descripción corregida, sin explicaciones.
+Formato exacto:
+1. descripción corregida
+2. descripción corregida
+
+Descripciones:
+{lista}"""
+
+    try:
+        response = modelo.generate_content(prompt)
+        lineas = response.text.strip().split("\n")
+        resultados = {}
+        for linea in lineas:
+            linea = linea.strip()
+            if not linea: continue
+            match = re.match(r'^(\d+)\.\s*(.+)$', linea)
+            if match:
+                idx = int(match.group(1)) - 1
+                resultados[idx] = match.group(2).strip()
+        return resultados
+    except:
+        return {}
+
+def separar_palabras_pegadas(texto, modelo=None):
+    """Separa palabras pegadas usando Gemini si disponible, sino diccionario."""
+    if not tiene_palabras_pegadas(texto):
+        return texto, False
+    
+    if modelo:
+        # Modo Gemini - se llama por lotes desde procesar_archivo
+        return texto, False  # placeholder, se procesa en lote
+    
+    # Fallback: diccionario local
     palabras = texto.split()
     resultado = []
     modificado = False
-
     for palabra in palabras:
-        # Ignorar si tiene menos de 8 chars, es número, tiene espacios o es código/modelo
         if (len(palabra) < 8 or
             re.match(r'^[\d\W]+$', palabra) or
             re.match(r'^[A-Z]{1,4}\d+', palabra)):
             resultado.append(palabra)
             continue
-
-        # Intentar segmentar
-        segmentada = segmentar(palabra.lower())
+        segmentada = segmentar_dp(palabra.lower())
         if segmentada and len(segmentada) > 1:
-            # Preservar mayúsculas originales de la primera letra
             if palabra[0].isupper():
                 segmentada[0] = segmentada[0].capitalize()
             resultado.append(" ".join(segmentada))
             modificado = True
         else:
             resultado.append(palabra)
-
     return " ".join(resultado), modificado
 
-def segmentar(texto, min_len=2):
-    """Segmenta un texto pegado usando el conjunto de palabras del dominio."""
-    if not texto: return []
-    if texto in PALABRAS_SEPARACION: return [texto]
-    for i in range(min_len, len(texto)):
-        p1, p2 = texto[:i], texto[i:]
-        if p1 in PALABRAS_SEPARACION:
-            if not p2: return [p1]
-            r = segmentar(p2, min_len)
-            if r and r != [p2]: return [p1] + r
-            if p2 in PALABRAS_SEPARACION: return [p1, p2]
-    return [texto]
+def segmentar_dp(texto):
+    """Segmentación por programación dinámica - fallback sin Gemini."""
+    n = len(texto)
+    dp = [None] * (n + 1)
+    dp[0] = []
+    for i in range(n):
+        if dp[i] is None: continue
+        for j in range(i + 1, n + 1):
+            sub = texto[i:j]
+            if sub in PALABRAS_SEPARACION and dp[j] is None:
+                dp[j] = dp[i] + [sub]
+    return dp[n] if dp[n] is not None else [texto]
 
 PALABRAS_CLAVE = ["KIT", "CONJUNTO", "MANGUERA"]
 PALABRAS_CLAVE_FRASE = ["ELEMENTO FILTRANTE"]
@@ -672,23 +735,70 @@ if archivo:
         col_codigo = df.columns[0]
         col_desc = df.columns[1]
 
+        # Inicializar Gemini
+        modelo_gemini = get_gemini_model()
+        if modelo_gemini:
+            st.info("🤖 Gemini AI activado — separación y traducción inteligente")
+        else:
+            st.warning("⚠️ Sin Gemini — usando modo diccionario")
+
         progress_bar = st.progress(0)
         status_text = st.empty()
         log_area = st.empty()
         log_lines = []
 
+        # PRE-PROCESO: si hay Gemini, separar en lotes las descripciones pegadas
+        descripciones_gemini = {}
+        if modelo_gemini:
+            status_text.markdown("🤖 **Paso 1/2:** Procesando con Gemini AI...")
+            
+            # Identificar las que necesitan Gemini
+            indices_pegadas = []
+            descs_pegadas = []
+            for i, row in df.iterrows():
+                desc = str(row[col_desc]).strip() if pd.notna(row[col_desc]) else ""
+                if desc and desc != "nan" and tiene_palabras_pegadas(desc):
+                    indices_pegadas.append(i)
+                    descs_pegadas.append(desc)
+            
+            # Procesar en lotes de 20
+            LOTE = 20
+            for batch_start in range(0, len(descs_pegadas), LOTE):
+                batch_idx = indices_pegadas[batch_start:batch_start+LOTE]
+                batch_desc = descs_pegadas[batch_start:batch_start+LOTE]
+                
+                resultados_gemini = procesar_lote_gemini(modelo_gemini, batch_desc)
+                for j, idx_orig in enumerate(batch_idx):
+                    if j in resultados_gemini:
+                        descripciones_gemini[idx_orig] = resultados_gemini[j]
+                
+                prog = min((batch_start + LOTE) / max(len(descs_pegadas), 1), 1.0)
+                progress_bar.progress(prog * 0.5)
+            
+            status_text.markdown(f"🤖 Gemini procesó **{len(descripciones_gemini)}** descripciones")
+
+        # PROCESO PRINCIPAL
+        status_text.markdown("⚙️ **Paso 2/2:** Aplicando correcciones finales...")
         for i, row in df.iterrows():
             codigo = str(row[col_codigo]).strip()
             desc_original = str(row[col_desc]).strip() if pd.notna(row[col_desc]) else ""
 
-            progress_bar.progress((i + 1) / total)
+            progress_bar.progress(0.5 + (i + 1) / total * 0.5 if modelo_gemini else (i + 1) / total)
             status_text.markdown(f"⚙️ Procesando **{i+1} de {total}**: `{codigo}`")
 
             if not desc_original or desc_original == "nan":
                 resultados.append({"codigo": codigo, "original": "", "errores": "Sin descripción", "keywords": "", "corregida": ""})
                 log_lines.append(f"⬜ [{i+1:03d}] {codigo} → Sin descripción")
             else:
-                corregida, errores, keywords = procesar_descripcion(desc_original)
+                # Si Gemini ya procesó esta descripción, usarla como base
+                if i in descripciones_gemini:
+                    desc_para_procesar = descripciones_gemini[i]
+                    corregida, errores, keywords = procesar_descripcion(desc_para_procesar)
+                    if "gemini" not in errores.lower():
+                        errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
+                else:
+                    corregida, errores, keywords = procesar_descripcion(desc_original)
+                
                 resultados.append({"codigo": codigo, "original": desc_original, "errores": errores, "keywords": keywords, "corregida": corregida})
                 icono = "⚠️" if keywords else ("✅" if errores == "Sin errores" else "✏️")
                 log_lines.append(f"{icono} [{i+1:03d}] {codigo} → {corregida[:55]}...")
