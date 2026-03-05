@@ -287,18 +287,137 @@ st.set_page_config(page_title="Corrector de Descripciones Finning", page_icon="�
 
 st.markdown("""
 <style>
-    .block-container { padding-top: 2rem; }
-    .tag { background:#e8f5e9; border:1px solid #a5d6a7; color:#2d6a2d; font-size:0.72rem;
-           letter-spacing:0.15em; text-transform:uppercase; padding:3px 10px;
-           border-radius:3px; display:inline-block; margin-bottom:0.5rem; }
-    .titulo { font-size:2.2rem; font-weight:800; color:#2d6a2d; margin-bottom:0; }
-    .subtitulo { color:#888; font-size:0.9rem; letter-spacing:0.08em; margin-bottom:1.5rem; }
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500&display=swap');
+
+    .stApp { background: linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a1628 100%) !important; }
+    .block-container { padding-top: 1.5rem !important; max-width: 1100px !important; }
+
+    .hero-wrap {
+        background: linear-gradient(90deg, #0d3b6e 0%, #1a5fa8 60%, #0d3b6e 100%);
+        border: 1px solid #1e6ab8;
+        border-radius: 12px;
+        padding: 2.2rem 2.5rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-wrap::after {
+        content: '⚙';
+        position: absolute;
+        right: 1.5rem; top: 50%;
+        transform: translateY(-50%);
+        font-size: 9rem;
+        opacity: 0.05;
+        line-height: 1;
+    }
+    .hero-tag {
+        background: rgba(255,165,0,0.15);
+        border: 1px solid rgba(255,165,0,0.4);
+        color: #ffb347;
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        padding: 3px 14px;
+        border-radius: 3px;
+        display: inline-block;
+        margin-bottom: 0.7rem;
+    }
+    .hero-title {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 3rem;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.05;
+        margin-bottom: 0.4rem;
+        letter-spacing: 0.01em;
+    }
+    .hero-title span { color: #ffb347; }
+    .hero-sub {
+        font-family: 'Barlow', sans-serif;
+        font-weight: 300;
+        color: rgba(255,255,255,0.55);
+        font-size: 0.92rem;
+        letter-spacing: 0.04em;
+    }
+    .hero-badges { margin-top: 1rem; display: flex; gap: 8px; flex-wrap: wrap; }
+    .hbadge {
+        background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.12);
+        color: rgba(255,255,255,0.7);
+        font-family: 'Barlow', sans-serif;
+        font-size: 0.78rem;
+        padding: 3px 12px;
+        border-radius: 20px;
+    }
+
+    h1,h2,h3 { font-family: 'Barlow Condensed', sans-serif !important; color: #fff !important; letter-spacing: 0.02em !important; }
+    p, .stMarkdown p { color: rgba(255,255,255,0.8) !important; }
+
+    [data-testid="stFileUploader"] {
+        background: rgba(13,59,110,0.25) !important;
+        border: 2px dashed #1e6ab8 !important;
+        border-radius: 10px !important;
+    }
+
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(90deg, #e67e00, #ffb347) !important;
+        color: #0a1628 !important;
+        font-family: 'Barlow Condensed', sans-serif !important;
+        font-size: 1.15rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.12em !important;
+        text-transform: uppercase !important;
+        border: none !important;
+        border-radius: 8px !important;
+        transition: all 0.2s !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 6px 20px rgba(255,165,0,0.35) !important;
+        transform: translateY(-1px) !important;
+    }
+    .stDownloadButton > button {
+        background: linear-gradient(90deg, #1a5fa8, #2980d4) !important;
+        color: #fff !important;
+        font-family: 'Barlow Condensed', sans-serif !important;
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+        border: none !important;
+        border-radius: 8px !important;
+    }
+
+    [data-testid="stMetric"] {
+        background: rgba(13,59,110,0.4) !important;
+        border: 1px solid #1e6ab8 !important;
+        border-radius: 10px !important;
+        padding: 1rem !important;
+    }
+    [data-testid="stMetricValue"] { font-family: 'Barlow Condensed', sans-serif !important; color: #ffb347 !important; font-size: 2.2rem !important; }
+    [data-testid="stMetricLabel"] { color: rgba(255,255,255,0.55) !important; }
+
+    .stSuccess { background: rgba(0,100,0,0.2) !important; border-left-color: #2d8a2d !important; }
+    .stInfo { background: rgba(13,59,110,0.35) !important; border-left-color: #1e6ab8 !important; }
+    hr { border-color: rgba(30,106,184,0.25) !important; }
+    .stDataFrame { border-radius: 8px !important; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="tag">🔧 Industria Automotriz · Repuestos Maquinaria Pesada</div>', unsafe_allow_html=True)
-st.markdown('<div class="titulo">Corrector de Descripciones Finning</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitulo">Traducción semántica · Corrección ortográfica · Normalización · 100% gratuito</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="hero-wrap">
+    <div class="hero-tag">🔧 Finning · Repuestos Maquinaria Pesada</div>
+    <div class="hero-title">Corrector de<br><span>Descripciones</span></div>
+    <div class="hero-sub">Procesamiento inteligente de descripciones de artículos en español</div>
+    <div class="hero-badges">
+        <span class="hbadge">✓ Traducción semántica</span>
+        <span class="hbadge">✓ Corrección ortográfica</span>
+        <span class="hbadge">✓ Normalización</span>
+        <span class="hbadge">✓ 100% gratuito</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 st.divider()
 
 archivo = st.file_uploader("📁 Subí tu Excel (Columna A = Código | Columna B = Descripción)", type=["xlsx", "xls"])
