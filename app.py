@@ -235,9 +235,31 @@ def limpiar_url(texto):
     return re.sub(r'https?://\S+', '', texto).strip()
 
 def limpiar_codigo_interno(texto):
+    """Elimina códigos internos tipo SEAL_EXHAUST_1974834.
+    Si el texto es SOLO un código, extrae las palabras descriptivas y las traduce."""
+    
+    # Detectar si todo el texto es un código tipo PALABRA_PALABRA_NUMERO
+    patron_codigo_completo = r'^([A-Z][A-Z_]+)_\d{5,}$'
+    match = re.match(patron_codigo_completo, texto.strip())
+    
+    if match:
+        # Extraer partes descriptivas (sin el número final)
+        partes = texto.strip().split('_')
+        palabras = [p for p in partes if not p.isdigit() and len(p) > 1]
+        # Traducir cada parte usando el diccionario
+        traducidas = []
+        for p in palabras:
+            p_lower = p.lower()
+            if p_lower in DICCIONARIO_TECNICO:
+                traducidas.append(DICCIONARIO_TECNICO[p_lower])
+            else:
+                traducidas.append(p.capitalize())
+        return " ".join(traducidas), True
+    
+    # Caso normal: eliminar códigos embebidos en el texto
     texto = re.sub(r'\b[A-Z]+_[A-Z]+_\d{5,}\b', '', texto)
     texto = re.sub(r'\b[A-Z_]{3,}_\d{5,}\b', '', texto)
-    return re.sub(r'\s+', ' ', texto).strip()
+    return re.sub(r'\s+', ' ', texto).strip(), False
 
 def detectar_palabras_clave(texto):
     texto_upper = texto.upper()
@@ -284,8 +306,10 @@ def procesar_descripcion(descripcion_original):
         errores_encontrados.append("URL eliminada")
 
     # 2. Limpiar códigos internos
-    desc_sin_codigos = limpiar_codigo_interno(desc)
-    if desc_sin_codigos != desc:
+    desc_sin_codigos, fue_solo_codigo = limpiar_codigo_interno(desc)
+    if fue_solo_codigo:
+        errores_encontrados.append(f"código interno traducido: {desc.strip()}→{desc_sin_codigos}")
+    elif desc_sin_codigos != desc:
         errores_encontrados.append("código interno eliminado")
     desc = desc_sin_codigos
 
