@@ -10,11 +10,7 @@ import sys
 def instalar(paquete):
     subprocess.check_call([sys.executable, "-m", "pip", "install", paquete, "-q"])
 
-try:
-    from langdetect import detect
-except ImportError:
-    instalar("langdetect")
-    from langdetect import detect
+# Sin langdetect - solo diccionario técnico
 
 # ── Diccionario técnico de repuestos maquinaria pesada ────
 DICCIONARIO_TECNICO = {
@@ -190,6 +186,7 @@ DICCIONARIO_TECNICO = {
 }
 
 PALABRAS_CLAVE = ["KIT", "CONJUNTO", "MANGUERA"]
+PALABRAS_CLAVE_FRASE = ["ELEMENTO FILTRANTE"]
 
 CORRECCIONES_ORTOGRAFIA = {
     r'\bpasdor\b': 'pasador',
@@ -244,7 +241,15 @@ def limpiar_codigo_interno(texto):
 
 def detectar_palabras_clave(texto):
     texto_upper = texto.upper()
-    encontradas = [p for p in PALABRAS_CLAVE if re.search(r'\b' + p + r'\b', texto_upper)]
+    encontradas = []
+    # Palabras simples
+    for p in PALABRAS_CLAVE:
+        if re.search(r'\b' + p + r'\b', texto_upper):
+            encontradas.append(p)
+    # Frases de dos o más palabras (deben aparecer juntas)
+    for frase in PALABRAS_CLAVE_FRASE:
+        if frase in texto_upper:
+            encontradas.append(frase)
     return " | ".join([f"⚠️ {p}" for p in encontradas]) if encontradas else ""
 
 def corregir_ortografia(texto):
@@ -262,53 +267,13 @@ def es_marca_o_modelo(palabra):
 def es_medida(palabra):
     return bool(re.match(r'^\d+[\.\-,]?\d*\s*(mm|MM|cm|m|psi|PSI|kg|KG|lb|VCC|VCA|rpm|RPM|pulg|\'|\")?$', palabra))
 
-# Palabras españolas comunes que langdetect puede confundir con inglés
-PALABRAS_ESPANOL_VALIDAS = {
-    "para", "con", "sin", "del", "las", "los", "una", "uso", "tipo",
-    "maza", "tubo", "aros", "buje", "tapa", "eje", "perno", "tuerca",
-    "junta", "sello", "bomba", "motor", "brazo", "pluma", "correa",
-    "cadena", "resorte", "freno", "disco", "placa", "soporte", "carcasa",
-    "filtro", "tobera", "piston", "camisa", "culata", "colector", "polea",
-    "rodillo", "pasador", "grapa", "arandela", "tornillo", "esparrago",
-    "manguera", "cano", "brida", "codo", "niple", "conector", "adaptador",
-    "sensor", "rele", "fusible", "cable", "lampara", "indicador", "palanca",
-    "perilla", "manija", "asiento", "espejo", "vidrio", "puerta", "panel",
-    "ventana", "bastidor", "protector", "acople", "embrague", "diferencial",
-    "transmision", "planetario", "amortiguador", "oruga", "zapata", "eslabon",
-    "cuchilla", "balde", "ventilador", "radiador", "termostato", "enfriador",
-    "rodamiento", "manguito", "pista", "cono", "reten", "rascador",
-    "ciguenial", "biela", "balancin", "volante", "colador", "cartucho",
-    "conjunto", "juego", "grupo", "turbo", "escape", "admision",
-}
-
-IDIOMAS_NOMBRES = {
-    "en": "inglés", "pt": "portugués", "fr": "francés",
-    "de": "alemán", "it": "italiano", "nl": "holandés",
-}
-
 def traducir_token(token):
-    """Traduce si está en diccionario. Si no está y parece otro idioma, alerta."""
+    """Traduce solo si la palabra está en el diccionario técnico."""
     limpio = token.strip('.,;:()/\'"`°-').lower()
-
-    # 1. Está en diccionario → traducir
     if limpio in DICCIONARIO_TECNICO:
-        return DICCIONARIO_TECNICO[limpio], limpio, None
+        return DICCIONARIO_TECNICO[limpio], limpio
+    return None, None
 
-    # 2. Es palabra española conocida → no tocar
-    if limpio in PALABRAS_ESPANOL_VALIDAS:
-        return None, None, None
-
-    # 3. Solo letras, longitud razonable → detectar idioma
-    if len(limpio) > 3 and re.match(r'^[a-zA-Z]+$', limpio):
-        try:
-            idioma = detect(limpio)
-            if idioma not in ('es', 'ca', 'gl'):
-                nombre_idioma = IDIOMAS_NOMBRES.get(idioma, idioma)
-                return None, None, f"no encontrada en diccionario: {limpio} ({nombre_idioma})"
-        except:
-            pass
-
-    return None, None, None
 
 def procesar_descripcion(descripcion_original):
     errores_encontrados = []
@@ -335,13 +300,10 @@ def procesar_descripcion(descripcion_original):
         if es_marca_o_modelo(token) or es_medida(token):
             tokens_nuevos.append(token)
             continue
-        traduccion, original, alerta = traducir_token(token)
+        traduccion, original = traducir_token(token)
         if traduccion:
             errores_encontrados.append(f"traducido: {original}→{traduccion}")
             tokens_nuevos.append(traduccion)
-        elif alerta:
-            errores_encontrados.append(alerta)
-            tokens_nuevos.append(token)
         else:
             tokens_nuevos.append(token)
 
