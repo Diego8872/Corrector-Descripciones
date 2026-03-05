@@ -283,7 +283,7 @@ def generar_excel(resultados):
 
 
 # ── UI ─────────────────────────────────────────────────────
-st.set_page_config(page_title="Corrector de Descripciones", page_icon="🔧", layout="wide")
+st.set_page_config(page_title="Corrector de Descripciones Finning", page_icon="🔧", layout="wide")
 
 st.markdown("""
 <style>
@@ -297,7 +297,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="tag">🔧 Industria Automotriz · Repuestos Maquinaria Pesada</div>', unsafe_allow_html=True)
-st.markdown('<div class="titulo">Corrector de Descripciones</div>', unsafe_allow_html=True)
+st.markdown('<div class="titulo">Corrector de Descripciones Finning</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitulo">Traducción semántica · Corrección ortográfica · Normalización · 100% gratuito</div>', unsafe_allow_html=True)
 st.divider()
 
