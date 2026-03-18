@@ -17,13 +17,15 @@ except ImportError:
     instalar("groq")
     from groq import Groq
 
-def get_gemini_model():
-    """Inicializa Groq si hay API key disponible."""
+def get_ia_model():
+    """Inicializa IA (Groq) si hay API key disponible."""
     try:
-        api_key = st.secrets.get("GROQ_API_KEY", None)
+        api_key = st.secrets["GROQ_API_KEY"]
         if api_key:
             return Groq(api_key=api_key)
-    except:
+    except KeyError:
+        pass
+    except Exception:
         pass
     return None
 
@@ -279,7 +281,7 @@ def tiene_palabras_pegadas(texto):
         return True
     return False
 
-def procesar_lote_gemini(modelo, descripciones):
+def procesar_lote_ia(modelo, descripciones):
     """Manda un lote de descripciones a Gemini para separar y traducir."""
     lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
     prompt = f"""Eres un experto en repuestos de maquinaria pesada minera (Caterpillar, Komatsu, Volvo, etc).
@@ -755,12 +757,12 @@ if archivo:
         col_codigo = df.columns[0]
         col_desc = df.columns[1]
 
-        # Inicializar Gemini
-        modelo_gemini = get_gemini_model()
-        if modelo_gemini:
+        # Inicializar IA
+        modelo_ia = get_ia_model()
+        if modelo_ia:
             st.info("🤖 IA activada — separación y traducción inteligente")
         else:
-            st.warning("⚠️ Sin Gemini — usando modo diccionario")
+            st.warning("⚠️ Sin IA — usando modo diccionario")
 
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -768,9 +770,9 @@ if archivo:
         log_lines = []
 
         # PRE-PROCESO: si hay Gemini, separar en lotes las descripciones pegadas
-        descripciones_gemini = {}
-        if modelo_gemini:
-            status_text.markdown("🤖 **Paso 1/2:** Procesando con Gemini AI...")
+        descripciones_ia = {}
+        if modelo_ia:
+            status_text.markdown("🤖 **Paso 1/2:** Procesando con IA...")
             
             # Identificar las que necesitan Gemini
             indices_pegadas = []
@@ -787,15 +789,15 @@ if archivo:
                 batch_idx = indices_pegadas[batch_start:batch_start+LOTE]
                 batch_desc = descs_pegadas[batch_start:batch_start+LOTE]
                 
-                resultados_gemini = procesar_lote_gemini(modelo_gemini, batch_desc)
+                resultados_gemini = procesar_lote_ia(modelo_ia, batch_desc)
                 for j, idx_orig in enumerate(batch_idx):
                     if j in resultados_gemini:
-                        descripciones_gemini[idx_orig] = resultados_gemini[j]
+                        descripciones_ia[idx_orig] = resultados_gemini[j]
                 
                 prog = min((batch_start + LOTE) / max(len(descs_pegadas), 1), 1.0)
                 progress_bar.progress(prog * 0.5)
             
-            status_text.markdown(f"🤖 Gemini procesó **{len(descripciones_gemini)}** descripciones")
+            status_text.markdown(f"🤖 IA procesó **{len(descripciones_ia)}** descripciones")
 
         # PROCESO PRINCIPAL
         status_text.markdown("⚙️ **Paso 2/2:** Aplicando correcciones finales...")
@@ -803,7 +805,7 @@ if archivo:
             codigo = str(row[col_codigo]).strip()
             desc_original = str(row[col_desc]).strip() if pd.notna(row[col_desc]) else ""
 
-            progress_bar.progress(0.5 + (i + 1) / total * 0.5 if modelo_gemini else (i + 1) / total)
+            progress_bar.progress(0.5 + (i + 1) / total * 0.5 if modelo_ia else (i + 1) / total)
             status_text.markdown(f"⚙️ Procesando **{i+1} de {total}**: `{codigo}`")
 
             if not desc_original or desc_original == "nan":
@@ -811,10 +813,10 @@ if archivo:
                 log_lines.append(f"⬜ [{i+1:03d}] {codigo} → Sin descripción")
             else:
                 # Si Gemini ya procesó esta descripción, usarla como base
-                if i in descripciones_gemini:
-                    desc_para_procesar = descripciones_gemini[i]
+                if i in descripciones_ia:
+                    desc_para_procesar = descripciones_ia[i]
                     corregida, errores, keywords = procesar_descripcion(desc_para_procesar)
-                    if "gemini" not in errores.lower():
+                    if "separado" not in errores.lower():
                         errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
                 else:
                     corregida, errores, keywords = procesar_descripcion(desc_original)
