@@ -332,6 +332,59 @@ Descripciones:
     except Exception as e:
         return {}
 
+def detectar_equipo_groq(modelo, descripciones):
+    """Usa Groq para detectar referencia a equipos en descripciones ambiguas."""
+    lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
+    prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, SEM, etc).
+
+Para cada descripción, determiná si menciona el equipo donde se usa el repuesto.
+Si menciona un equipo, separalo del resto de la descripción.
+
+FORMATO DE RESPUESTA — una línea por item:
+- Si HAY referencia a equipo: número|descripción sin equipo|referencia al equipo
+- Si NO HAY referencia: número|sin equipo|
+
+Ejemplos:
+"Pestillo acero para tapa de cajon de bateria cargador frontal 950M"
+→ 1|Pestillo de acero para tapa de cajón de batería|cargador frontal 950M
+
+"Pista de ruleman conico de acero inox de transmision de topador cat d9"  
+→ 2|Pista de rodamiento cónico de acero inoxidable de transmisión|topador CAT D9
+
+"ANILLO TORICO DE NYLON CILINDRO DE ELEVACION CARGADOR 966"
+→ 3|Anillo tórico de nylon cilindro de elevación|Cargador 966
+
+"Tornillo de acero M10"
+→ 4|Tornillo de acero M10|
+
+Descripciones:
+{lista}"""
+
+    try:
+        response = modelo.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{{"role": "user", "content": prompt}}],
+            temperature=0.1,
+        )
+        texto = response.choices[0].message.content.strip()
+        resultados = {{}}
+        for linea in texto.split("\n"):
+            linea = linea.strip()
+            if not linea: continue
+            partes = linea.split("|")
+            if len(partes) >= 3:
+                try:
+                    idx = int(re.match(r'(\d+)', partes[0]).group(1)) - 1
+                    desc_limpia = partes[1].strip()
+                    equipo = partes[2].strip()
+                    if desc_limpia:
+                        resultados[idx] = (desc_limpia, equipo)
+                except:
+                    pass
+        return resultados
+    except:
+        return {{}}
+
 def separar_palabras_pegadas(texto, modelo=None):
     """Separa palabras pegadas usando Gemini si disponible, sino diccionario."""
     if not tiene_palabras_pegadas(texto):
@@ -481,19 +534,43 @@ PATRON_CORTE_EQUIPO = re.compile(r'''(?ix)
     )
 ''')
 
+# Nombres de equipos conocidos para detección directa
+NOMBRES_EQUIPOS = re.compile(r'''(?ix)
+    ,?\s*
+    (
+        cargador\s+frontal | cargador\s+a\s+frontal | minicargador |
+        excavadora | motoniveladora | topador | tractor\s+topador |
+        camion\s+minero | camion | volquete | retroexcavadora |
+        compactador | pavimentador | terminadora | motogenerador |
+        grupo\s+electr[oó]geno | generador | tren\s+de\s+potencia |
+        cargadora | manipulador | perforadora
+    )
+    [\s,]+
+    [\w\s\-\/\.]{1,30}         # modelo/número después del equipo
+''')
+
 def extraer_equipo(texto):
-    """Extrae la parte de la descripción que indica en qué equipo se usa.
-    Retorna (descripcion_limpia, referencia_equipo)"""
-    # Limpiar saltos de línea
+    """Extrae referencia al equipo usando regex (A) y marca para Groq (B)."""
     texto = texto.replace('\n', ' ').replace('\r', ' ')
     texto = re.sub(r'\s+', ' ', texto).strip()
     
+    # OPCION A1 — patrones de frase clave
     match = PATRON_CORTE_EQUIPO.search(texto)
     if match:
         desc_limpia = texto[:match.start()].strip().rstrip(',').strip()
         equipo = texto[match.start():].strip().lstrip(',').strip()
-        return desc_limpia, equipo
-    return texto, ""
+        return desc_limpia, equipo, False  # False = no necesita Groq
+    
+    # OPCION A2 — nombre de equipo conocido al final
+    match2 = NOMBRES_EQUIPOS.search(texto)
+    if match2:
+        desc_limpia = texto[:match2.start()].strip().rstrip(',').strip()
+        equipo = texto[match2.start():].strip().lstrip(',').strip()
+        return desc_limpia, equipo, False
+    
+    # OPCION B — marcar para Groq si descripción es larga y compleja
+    necesita_groq = len(texto) > 40
+    return texto, "", necesita_groq
 
 def corregir_ortografia(texto):
     errores = []
@@ -527,7 +604,7 @@ def procesar_descripcion(descripcion_original):
         errores_encontrados.append("URL eliminada")
 
     # 2. Extraer referencia a equipo
-    desc, ref_equipo = extraer_equipo(desc)
+    desc, ref_equipo, necesita_groq_equipo = extraer_equipo(desc)
 
     # 3. Limpiar códigos internos
     desc_sin_codigos, fue_solo_codigo = limpiar_codigo_interno(desc)
@@ -572,7 +649,7 @@ def procesar_descripcion(descripcion_original):
     keywords = detectar_palabras_clave(desc)
 
     resumen = " | ".join(errores_encontrados) if errores_encontrados else "Sin errores"
-    return desc, resumen, keywords, ref_equipo
+    return desc, resumen, keywords, ref_equipo, necesita_groq_equipo
 
 
 def generar_excel(resultados):
@@ -834,7 +911,31 @@ if archivo:
                 progress_bar.progress(prog * 0.5)
             
             status_text.markdown(f"🤖 IA procesó **{len(descripciones_ia)}** descripciones")
+            
+            # PASO 1B: detectar equipos con Groq en casos ambiguos
+            status_text.markdown("🔍 **Paso 1B/2:** Detectando referencias a equipos...")
+            indices_sin_equipo = []
+            descs_sin_equipo = []
+            for i, row in df.iterrows():
+                desc = str(row[col_desc]).strip() if pd.notna(row[col_desc]) else ""
+                if not desc or desc == "nan": continue
+                _, _, necesita = extraer_equipo(desc)
+                if necesita:
+                    indices_sin_equipo.append(i)
+                    descs_sin_equipo.append(desc)
+            
+            equipos_groq = {}
+            for batch_start in range(0, len(descs_sin_equipo), LOTE):
+                batch_idx = indices_sin_equipo[batch_start:batch_start+LOTE]
+                batch_desc = descs_sin_equipo[batch_start:batch_start+LOTE]
+                resultados_eq = detectar_equipo_groq(modelo_ia, batch_desc)
+                for j, idx_orig in enumerate(batch_idx):
+                    if j in resultados_eq:
+                        equipos_groq[idx_orig] = resultados_eq[j]
 
+        if not modelo_ia:
+            equipos_groq = {}
+        
         # PROCESO PRINCIPAL
         status_text.markdown("⚙️ **Paso 2/2:** Aplicando correcciones finales...")
         for i, row in df.iterrows():
@@ -848,14 +949,21 @@ if archivo:
                 resultados.append({"codigo": codigo, "original": "", "errores": "Sin descripción", "keywords": "", "corregida": "", "equipo": ""})
                 log_lines.append(f"⬜ [{i+1:03d}] {codigo} → Sin descripción")
             else:
-                # Si Gemini ya procesó esta descripción, usarla como base
+                # Si IA ya procesó esta descripción, usarla como base
                 if i in descripciones_ia:
                     desc_para_procesar = descripciones_ia[i]
-                    corregida, errores, keywords, equipo = procesar_descripcion(desc_para_procesar)
+                    corregida, errores, keywords, equipo, _ = procesar_descripcion(desc_para_procesar)
                     if "separado" not in errores.lower():
                         errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
                 else:
-                    corregida, errores, keywords, equipo = procesar_descripcion(desc_original)
+                    corregida, errores, keywords, equipo, _ = procesar_descripcion(desc_original)
+                
+                # Si Groq detectó equipo en casos ambiguos, usarlo
+                if not equipo and i in equipos_groq:
+                    desc_groq, equipo_groq = equipos_groq[i]
+                    if equipo_groq:
+                        equipo = equipo_groq
+                        corregida = desc_groq
                 
                 resultados.append({"codigo": codigo, "original": desc_original, "errores": errores, "keywords": keywords, "corregida": corregida, "equipo": equipo})
                 icono = "⚠️" if keywords else ("✅" if errores == "Sin errores" else "✏️")
