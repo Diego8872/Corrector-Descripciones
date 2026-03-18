@@ -463,6 +463,38 @@ def detectar_palabras_clave(texto):
             encontradas.append(frase)
     return " | ".join([f"⚠️ {p}" for p in encontradas]) if encontradas else ""
 
+
+PATRON_CORTE_EQUIPO = re.compile(r'''(?ix)
+    (
+        ,?\s*uso\s+en\b |
+        ,?\s*uso\s+como\b |
+        ,?\s*uso\s+general\s+en\b |
+        ,?\s*de\s+uso\s+en\b |
+        ,?\s*pertenece\s+al\b |
+        ,?\s*es\s+parte\s+del\b |
+        ,?\s*para\s+los\s+equipos\b |
+        ,?\s*utilizados?\s+en\b |
+        ,?\s*utilizada\s+en\s+equipo\b |
+        ,?\s*equipos?\s+varios\b |
+        ,?\s*en\s+equipo\s+\w |
+        ,?\s*en\s+l[ií]nea\s+de\b
+    )
+''')
+
+def extraer_equipo(texto):
+    """Extrae la parte de la descripción que indica en qué equipo se usa.
+    Retorna (descripcion_limpia, referencia_equipo)"""
+    # Limpiar saltos de línea
+    texto = texto.replace('\n', ' ').replace('\r', ' ')
+    texto = re.sub(r'\s+', ' ', texto).strip()
+    
+    match = PATRON_CORTE_EQUIPO.search(texto)
+    if match:
+        desc_limpia = texto[:match.start()].strip().rstrip(',').strip()
+        equipo = texto[match.start():].strip().lstrip(',').strip()
+        return desc_limpia, equipo
+    return texto, ""
+
 def corregir_ortografia(texto):
     errores = []
     for patron, correccion in CORRECCIONES_ORTOGRAFIA.items():
@@ -494,7 +526,10 @@ def procesar_descripcion(descripcion_original):
     if desc != descripcion_original:
         errores_encontrados.append("URL eliminada")
 
-    # 2. Limpiar códigos internos
+    # 2. Extraer referencia a equipo
+    desc, ref_equipo = extraer_equipo(desc)
+
+    # 3. Limpiar códigos internos
     desc_sin_codigos, fue_solo_codigo = limpiar_codigo_interno(desc)
     if fue_solo_codigo:
         errores_encontrados.append(f"código interno traducido: {desc.strip()}→{desc_sin_codigos}")
@@ -502,17 +537,17 @@ def procesar_descripcion(descripcion_original):
         errores_encontrados.append("código interno eliminado")
     desc = desc_sin_codigos
 
-    # 3. Separar palabras pegadas
+    # 4. Separar palabras pegadas
     desc_separada, fue_separada = separar_palabras_pegadas(desc)
     if fue_separada:
         errores_encontrados.append("palabras separadas")
     desc = desc_separada
 
-    # 4. Corregir ortografía
+    # 5. Corregir ortografía
     desc, errores_orto = corregir_ortografia(desc)
     errores_encontrados.extend(errores_orto)
 
-    # 4. Traducir palabra por palabra
+    # 6. Traducir palabra por palabra
     tokens = desc.split()
     tokens_nuevos = []
     for token in tokens:
@@ -528,16 +563,16 @@ def procesar_descripcion(descripcion_original):
 
     desc = " ".join(tokens_nuevos)
 
-    # 5. Limpiar espacios y normalizar
+    # 7. Limpiar espacios y normalizar
     desc = re.sub(r'\s+', ' ', desc).strip()
     if desc:
         desc = desc[0].upper() + desc[1:]
 
-    # 6. Detectar palabras clave
+    # 8. Detectar palabras clave
     keywords = detectar_palabras_clave(desc)
 
     resumen = " | ".join(errores_encontrados) if errores_encontrados else "Sin errores"
-    return desc, resumen, keywords
+    return desc, resumen, keywords, ref_equipo
 
 
 def generar_excel(resultados):
@@ -555,7 +590,7 @@ def generar_excel(resultados):
         top=Side(style='thin', color='CCCCCC'), bottom=Side(style='thin', color='CCCCCC')
     )
 
-    encabezados = ["Código", "Descripción Original", "Errores Detectados", "Palabras Clave ⚠️", "Descripción Corregida"]
+    encabezados = ["Código", "Descripción Original", "Errores Detectados", "Palabras Clave ⚠️", "Descripción Corregida", "Equipo/Uso"]
     for col, titulo in enumerate(encabezados, 1):
         cell = ws.cell(row=1, column=col, value=titulo)
         cell.fill = header_fill
@@ -565,12 +600,12 @@ def generar_excel(resultados):
     ws.row_dimensions[1].height = 32
 
     for fila, r in enumerate(resultados, 2):
-        for col, val in enumerate([r["codigo"], r["original"], r["errores"], r["keywords"], r["corregida"]], 1):
+        for col, val in enumerate([r["codigo"], r["original"], r["errores"], r["keywords"], r["corregida"], r.get("equipo","")], 1):
             cell = ws.cell(row=fila, column=col, value=val)
             cell.border = thin
             cell.alignment = Alignment(wrap_text=True, vertical="top")
         fill = kw_fill if r["keywords"] else (ok_fill if r["errores"] == "Sin errores" else error_fill)
-        for col in range(1, 6):
+        for col in range(1, 7):
             ws.cell(row=fila, column=col).fill = fill
 
     ws.column_dimensions['A'].width = 14
@@ -578,6 +613,7 @@ def generar_excel(resultados):
     ws.column_dimensions['C'].width = 38
     ws.column_dimensions['D'].width = 22
     ws.column_dimensions['E'].width = 45
+    ws.column_dimensions['F'].width = 55
 
     ws2 = wb.create_sheet("Resumen")
     total = len(resultados)
@@ -809,19 +845,19 @@ if archivo:
             status_text.markdown(f"⚙️ Procesando **{i+1} de {total}**: `{codigo}`")
 
             if not desc_original or desc_original == "nan":
-                resultados.append({"codigo": codigo, "original": "", "errores": "Sin descripción", "keywords": "", "corregida": ""})
+                resultados.append({"codigo": codigo, "original": "", "errores": "Sin descripción", "keywords": "", "corregida": "", "equipo": ""})
                 log_lines.append(f"⬜ [{i+1:03d}] {codigo} → Sin descripción")
             else:
                 # Si Gemini ya procesó esta descripción, usarla como base
                 if i in descripciones_ia:
                     desc_para_procesar = descripciones_ia[i]
-                    corregida, errores, keywords = procesar_descripcion(desc_para_procesar)
+                    corregida, errores, keywords, equipo = procesar_descripcion(desc_para_procesar)
                     if "separado" not in errores.lower():
                         errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
                 else:
-                    corregida, errores, keywords = procesar_descripcion(desc_original)
+                    corregida, errores, keywords, equipo = procesar_descripcion(desc_original)
                 
-                resultados.append({"codigo": codigo, "original": desc_original, "errores": errores, "keywords": keywords, "corregida": corregida})
+                resultados.append({"codigo": codigo, "original": desc_original, "errores": errores, "keywords": keywords, "corregida": corregida, "equipo": equipo})
                 icono = "⚠️" if keywords else ("✅" if errores == "Sin errores" else "✏️")
                 log_lines.append(f"{icono} [{i+1:03d}] {codigo} → {corregida[:55]}...")
 
@@ -844,7 +880,7 @@ if archivo:
 
         st.subheader("📋 Resultados")
         df_out = pd.DataFrame(resultados)
-        df_out.columns = ["Código", "Descripción Original", "Errores Detectados", "Palabras Clave", "Descripción Corregida"]
+        df_out.columns = ["Código", "Descripción Original", "Errores Detectados", "Palabras Clave", "Descripción Corregida", "Equipo/Uso"]
         st.dataframe(df_out, use_container_width=True, height=420)
 
         st.divider()
