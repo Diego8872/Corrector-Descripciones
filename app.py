@@ -337,39 +337,31 @@ def detectar_equipo_groq(modelo, descripciones):
     lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
     prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, SEM, Volvo, etc).
 
-TAREA: Para cada descripción de repuesto, separar la descripción del repuesto de cualquier referencia al equipo donde se usa.
+TAREA: Para cada descripción, identificar si menciona el equipo/máquina donde se usa el repuesto y extraer SOLO esa referencia.
 
-REGLA FUNDAMENTAL:
-- La descripción del repuesto debe describir SOLO el repuesto: qué es, material, características, dimensiones
-- Todo lo que indique EN QUÉ EQUIPO, MÁQUINA, MOTOR o VEHÍCULO se usa → va como EQUIPO
-- Si no hay referencia a equipo → EQUIPO queda vacío
+REGLA: Devolvé SOLO la referencia al equipo (marca, modelo, tipo de máquina). Si no hay referencia a equipo, devolvé vacío.
 
-CASOS QUE DEBEN CORTARSE (ejemplos reales):
-"Bulón de acero (M10X1.25) Caterpillar" → Bulón de acero (M10X1.25) | Caterpillar
-"Válvula de solenoide de acero. Topadores D6" → Válvula de solenoide de acero | Topadores D6
-"Conjunto del alternador, equipos varios CAT" → Conjunto del alternador | equipos varios CAT
-"Retén de caucho, mando final de Cargador SEM 636D" → Retén de caucho, mando final | Cargador SEM 636D
-"Desgarrador de acero 639mm. Para uso en Retroexcavadoras 420" → Desgarrador de acero 639mm | Retroexcavadoras 420
-"Medidor de nivel hidráulico. Aplica a Sistema Hidráulico de Equipo Cargador" → Medidor de nivel hidráulico | Sistema Hidráulico de Equipo Cargador
-"Chapa de acero protector termico en escape de cargador bajo perfil R1700G" → Chapa de acero protector termico en escape | cargador bajo perfil R1700G
-"Filtro de aceite de cargador frontal 972K" → Filtro de aceite | cargador frontal 972K
-"INTERRUPTOR ELECTRICO PARA INSTALACIONES EN EQUIPOS MINEROS" → INTERRUPTOR ELECTRICO PARA INSTALACIONES | EQUIPOS MINEROS
-"CINTURON DE SEGURIDAD PARA EQUIPOS MINEROS" → CINTURON DE SEGURIDAD | EQUIPOS MINEROS
-"Correa de caucho para poleas de motor de equipos mineros" → Correa de caucho para poleas de motor | equipos mineros
-"Sensor de presión Cat de 5V, gama 48-120 kPa" → Sensor de presión Cat de 5V, gama 48-120 kPa | (vacío - no hay equipo)
-"acople de INOX, ADAPTADOR DE MANGUERA HID, cat 777 CAMION" → acople de INOX, ADAPTADOR DE MANGUERA HID | cat 777 CAMION
+EJEMPLOS:
+"Bulón de acero (M10X1.25) Caterpillar" → Caterpillar
+"Válvula de solenoide de acero. Topadores D6" → Topadores D6
+"Conjunto del alternador, equipos varios CAT" → equipos varios CAT
+"Retén de caucho, mando final de Cargador SEM 636D" → Cargador SEM 636D
+"Desgarrador de acero. Para uso en Retroexcavadoras 420" → Retroexcavadoras 420
+"Medidor de nivel hidráulico. Aplica a Equipo Cargador" → Equipo Cargador
+"Chapa de acero protector en escape de cargador bajo perfil R1700G" → cargador bajo perfil R1700G
+"Filtro de aceite de cargador frontal 972K" → cargador frontal 972K
+"INTERRUPTOR ELECTRICO PARA EQUIPOS MINEROS" → EQUIPOS MINEROS
+"CINTURON DE SEGURIDAD PARA EQUIPOS MINEROS" → EQUIPOS MINEROS
+"acople de INOX, ADAPTADOR DE MANGUERA, cat 777 CAMION" → cat 777 CAMION
+"Sensor de presión Cat de 5V, gama 48-120 kPa" → (vacío)
+"BOMBA DE ENGRANAJES PARA FRENO" → (vacío)
+"Filtro de aceite de 10 micrones" → (vacío)
+"BRAZO DE ESCOBILLA LIMPIARABRISAS DE CABINA DE MOTONIVELADORA" → (vacío - motoniveladora es parte del nombre del repuesto)
 
-CASOS QUE NO DEBEN CORTARSE:
-"BOMBA DE ENGRANAJES PARA FRENO" → BOMBA DE ENGRANAJES PARA FRENO | (vacío)
-"ADAPTADOR PARA FRENO" → ADAPTADOR PARA FRENO | (vacío)
-"Juego de ganzúas de acero, uso como herramienta para remoción de orings" → igual | (vacío)
-"Filtro de aceite de 10 micrones, papel celulosa" → igual | (vacío)
-"BRAZO DE ESCOBILLA LIMPIARABRISAS, VENTANA IZQUIERDA DE CABINA DE MOTONIVELADORA" → igual | (vacío - la motoniveladora es parte del nombre del repuesto)
+FORMATO — una línea por item, solo número y equipo:
+número|equipo (o vacío)
 
-FORMATO DE RESPUESTA — exactamente una línea por item:
-número|descripción del repuesto|equipo (vacío si no hay)
-
-Descripciones a procesar:
+Descripciones:
 {lista}"""
 
     try:
@@ -387,12 +379,11 @@ Descripciones a procesar:
             if len(partes) >= 2:
                 try:
                     idx = int(re.match(r'(\d+)', partes[0]).group(1)) - 1
-                    desc_limpia = partes[1].strip()
-                    equipo = partes[2].strip() if len(partes) >= 3 else ""
+                    equipo = partes[1].strip()
                     # Limpiar respuestas vacías
-                    equipo = "" if equipo.lower() in ("ninguno", "(ninguno)", "none", "-", "vacío", "(vacío)", "vacio", "(vacio)") else equipo
-                    if desc_limpia and desc_limpia.lower() not in ("ninguno", "(ninguno)"):
-                        resultados[idx] = (desc_limpia, equipo)
+                    VACIOS = {"ninguno","(ninguno)","none","-","vacío","(vacío)","vacio","(vacio)","","sin equipo","(sin equipo)"}
+                    equipo = "" if equipo.lower() in VACIOS else equipo
+                    resultados[idx] = ("", equipo)
                 except:
                     pass
         return resultados
@@ -992,11 +983,9 @@ if archivo:
                 if i in descripciones_ia and "separado" not in errores.lower():
                     errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
                 
-                # Groq siempre tiene la última palabra sobre el equipo
+                # Groq detecta el equipo — solo actualizamos columna Equipo/Uso
                 if i in equipos_groq:
-                    desc_groq, equipo_groq = equipos_groq[i]
-                    if desc_groq:
-                        corregida = desc_groq
+                    _, equipo_groq = equipos_groq[i]
                     if equipo_groq:
                         equipo = equipo_groq
                 
