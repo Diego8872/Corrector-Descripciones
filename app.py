@@ -517,22 +517,24 @@ def detectar_palabras_clave(texto):
     return " | ".join([f"⚠️ {p}" for p in encontradas]) if encontradas else ""
 
 
-PATRON_CORTE_EQUIPO = re.compile(r'''(?ix)
-    (
-        ,?\s*uso\s+en\b |
-        ,?\s*uso\s+como\b |
-        ,?\s*uso\s+general\s+en\b |
-        ,?\s*de\s+uso\s+en\b |
-        ,?\s*pertenece\s+al\b |
-        ,?\s*es\s+parte\s+del\b |
-        ,?\s*para\s+los\s+equipos\b |
-        ,?\s*utilizados?\s+en\b |
-        ,?\s*utilizada\s+en\s+equipo\b |
-        ,?\s*equipos?\s+varios\b |
-        ,?\s*en\s+equipo\s+\w |
-        ,?\s*en\s+l[ií]nea\s+de\b
-    )
-''')
+PATRON_CORTE_EQUIPO = re.compile(
+    r'(?i),?\s*(?:'
+    r'para\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s*(?:mineros?|cat(?:erpillar)?|marca|fuera\s+de\s+ruta|[0-9]{3,4}[A-Z]?(?:\s+cat(?:erpillar)?)?)?(?=\s*[,.\-]|$)|'
+    r'para\s+equipos?\s+(?:mineros?|cat(?:erpillar)?|varios|barios|industriales?)|'
+    r'para\s+motor(?:es)?\s+(?:cat(?:erpillar)?|diesel|a\s+gas|de\s+encendido)\b|'
+    r'para\s+instalaciones?\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
+    r'para\s+\w+\s+(?:de\s+\w+\s+)?de\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:mineros?|cat|caterpillar)|'
+    r'para\s+uso\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?|maquinas?\s+cat(?:erpillar)?|mineria)|'
+    r'uso\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?|maquinas?\s+cat(?:erpillar)?|mineria)|'
+    r'uso\s+equipos?\s+(?:varios|barios|mineros?|cat(?:erpillar)?)|'
+    r'utilizad[oa]s?\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?|cargador\s+marca)|'
+    r'instalad[oa]\s+en\s+\w|'
+    r'usad[oa]\s+en\s+\w|'
+    r'aplicacion\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
+    r'de\s+uso\s+en\s+(?:maquinas?\s+cat(?:erpillar)?|mineria|camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
+    r'(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:cat\s+)?\d{3,4}[A-Z]?\b|'
+    r'en\s+equipos?\s+(?:mineros?|cat(?:erpillar)?|varios)'
+    r')')
 
 # Nombres de equipos conocidos para detección directa
 NOMBRES_EQUIPOS = re.compile(r'''(?ix)
