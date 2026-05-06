@@ -95,7 +95,7 @@ DICCIONARIO_TECNICO = {
 
     # ── Sistema hidráulico ──
     "pump": "bomba", "pumps": "bombas",
-    "motor": "motor hidráulico",
+    # "motor" no se traduce — genera falsos positivos
     "cylinder": "cilindro", "cylinders": "cilindros",
     "hose": "manguera", "hoses": "mangueras",
     "tube": "tubo", "tubes": "tubos",
@@ -518,21 +518,26 @@ def detectar_palabras_clave(texto):
 
 
 PATRON_CORTE_EQUIPO = re.compile(
-    r'(?i),?\s*(?:'
-    r'para\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s*(?:mineros?|cat(?:erpillar)?|marca|fuera\s+de\s+ruta|[0-9]{3,4}[A-Z]?(?:\s+cat(?:erpillar)?)?)?(?=\s*[,.\-]|$)|'
+    r'(?i),?[\s.]*(?:'
+    r'de\s+motor(?:es)?\s+(?:diesel|cat(?:erpillar)?|a\s+gas|el[eé]ctrico)\b|'
+    r'de\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:cat\s+)?(?:minero\s+)?\d{2,4}[A-Z]?\b|'
+    r'uso\s+en\s+(?:\w+\s+de\s+)?(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
+    r'uso\s+en\s+[A-Z0-9]{2,6}[A-Z0-9]\b|'
+    r'uso\s+en\s+(?:carrocer[ií]a|chasis|grupo|sistema|tren)\s+de\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
     r'para\s+equipos?\s+(?:mineros?|cat(?:erpillar)?|varios|barios|industriales?)|'
-    r'para\s+motor(?:es)?\s+(?:cat(?:erpillar)?|diesel|a\s+gas|de\s+encendido)\b|'
+    r'para\s+motor(?:es)?\s+(?:cat(?:erpillar)?|diesel|a\s+gas)\b|'
     r'para\s+instalaciones?\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
-    r'para\s+\w+\s+(?:de\s+\w+\s+)?de\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:mineros?|cat|caterpillar)|'
     r'para\s+uso\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?|maquinas?\s+cat(?:erpillar)?|mineria)|'
-    r'uso\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?|maquinas?\s+cat(?:erpillar)?|mineria)|'
+    r'para\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s*(?:mineros?|cat(?:erpillar)?|marca|fuera\s+de\s+ruta|[0-9]{3,4}[A-Z]?)?(?=\s*[,.\-]|$)|'
+    r'para\s+\w+\s+(?:de\s+\w+\s+)?de\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:mineros?|cat|caterpillar)|'
+    r'uso\s+en\s+(?:maquinas?\s+cat(?:erpillar)?|mineria)|'
     r'uso\s+equipos?\s+(?:varios|barios|mineros?|cat(?:erpillar)?)|'
     r'utilizad[oa]s?\s+en\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?|cargador\s+marca)|'
     r'instalad[oa]\s+en\s+\w|'
     r'usad[oa]\s+en\s+\w|'
     r'aplicacion\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
-    r'de\s+uso\s+en\s+(?:maquinas?\s+cat(?:erpillar)?|mineria|camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
-    r'(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:cat\s+)?\d{3,4}[A-Z]?\b|'
+    r'de\s+uso\s+en[.\s]+(?:maquinas?\s+cat(?:erpillar)?|mineria|camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
+    r'(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:cat\s+)?(?:minero\s+)?\d{3,4}[A-Z]?\b|'
     r'en\s+equipos?\s+(?:mineros?|cat(?:erpillar)?|varios)'
     r')')
 
