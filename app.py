@@ -333,57 +333,72 @@ Descripciones:
         return {}
 
 def detectar_equipo_groq(modelo, descripciones):
-    """Usa Groq para detectar referencia a equipos en descripciones ambiguas."""
+    """Usa Groq para detectar y separar referencia a equipos en descripciones."""
     lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
-    prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, SEM, etc).
+    prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, SEM, Volvo, etc).
 
-Para cada descripción, determiná si menciona el equipo donde se usa el repuesto.
-Si menciona un equipo, separalo del resto de la descripción.
+TAREA: Para cada descripción de repuesto, separar la descripción del repuesto de cualquier referencia al equipo donde se usa.
 
-FORMATO DE RESPUESTA — una línea por item:
-- Si HAY referencia a equipo: número|descripción sin equipo|referencia al equipo
-- Si NO HAY referencia: número|sin equipo|
+REGLA FUNDAMENTAL:
+- La descripción del repuesto debe describir SOLO el repuesto: qué es, material, características, dimensiones
+- Todo lo que indique EN QUÉ EQUIPO, MÁQUINA, MOTOR o VEHÍCULO se usa → va como EQUIPO
+- Si no hay referencia a equipo → EQUIPO queda vacío
 
-Ejemplos:
-"Pestillo acero para tapa de cajon de bateria cargador frontal 950M"
-→ 1|Pestillo de acero para tapa de cajón de batería|cargador frontal 950M
+CASOS QUE DEBEN CORTARSE (ejemplos reales):
+"Bulón de acero (M10X1.25) Caterpillar" → Bulón de acero (M10X1.25) | Caterpillar
+"Válvula de solenoide de acero. Topadores D6" → Válvula de solenoide de acero | Topadores D6
+"Conjunto del alternador, equipos varios CAT" → Conjunto del alternador | equipos varios CAT
+"Retén de caucho, mando final de Cargador SEM 636D" → Retén de caucho, mando final | Cargador SEM 636D
+"Desgarrador de acero 639mm. Para uso en Retroexcavadoras 420" → Desgarrador de acero 639mm | Retroexcavadoras 420
+"Medidor de nivel hidráulico. Aplica a Sistema Hidráulico de Equipo Cargador" → Medidor de nivel hidráulico | Sistema Hidráulico de Equipo Cargador
+"Chapa de acero protector termico en escape de cargador bajo perfil R1700G" → Chapa de acero protector termico en escape | cargador bajo perfil R1700G
+"Filtro de aceite de cargador frontal 972K" → Filtro de aceite | cargador frontal 972K
+"INTERRUPTOR ELECTRICO PARA INSTALACIONES EN EQUIPOS MINEROS" → INTERRUPTOR ELECTRICO PARA INSTALACIONES | EQUIPOS MINEROS
+"CINTURON DE SEGURIDAD PARA EQUIPOS MINEROS" → CINTURON DE SEGURIDAD | EQUIPOS MINEROS
+"Correa de caucho para poleas de motor de equipos mineros" → Correa de caucho para poleas de motor | equipos mineros
+"Sensor de presión Cat de 5V, gama 48-120 kPa" → Sensor de presión Cat de 5V, gama 48-120 kPa | (vacío - no hay equipo)
+"acople de INOX, ADAPTADOR DE MANGUERA HID, cat 777 CAMION" → acople de INOX, ADAPTADOR DE MANGUERA HID | cat 777 CAMION
 
-"Pista de ruleman conico de acero inox de transmision de topador cat d9"  
-→ 2|Pista de rodamiento cónico de acero inoxidable de transmisión|topador CAT D9
+CASOS QUE NO DEBEN CORTARSE:
+"BOMBA DE ENGRANAJES PARA FRENO" → BOMBA DE ENGRANAJES PARA FRENO | (vacío)
+"ADAPTADOR PARA FRENO" → ADAPTADOR PARA FRENO | (vacío)
+"Juego de ganzúas de acero, uso como herramienta para remoción de orings" → igual | (vacío)
+"Filtro de aceite de 10 micrones, papel celulosa" → igual | (vacío)
+"BRAZO DE ESCOBILLA LIMPIARABRISAS, VENTANA IZQUIERDA DE CABINA DE MOTONIVELADORA" → igual | (vacío - la motoniveladora es parte del nombre del repuesto)
 
-"ANILLO TORICO DE NYLON CILINDRO DE ELEVACION CARGADOR 966"
-→ 3|Anillo tórico de nylon cilindro de elevación|Cargador 966
+FORMATO DE RESPUESTA — exactamente una línea por item:
+número|descripción del repuesto|equipo (vacío si no hay)
 
-"Tornillo de acero M10"
-→ 4|Tornillo de acero M10|
-
-Descripciones:
+Descripciones a procesar:
 {lista}"""
 
     try:
         response = modelo.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
+            messages=[{{"role": "user", "content": prompt}}],
+            temperature=0.0,
         )
         texto = response.choices[0].message.content.strip()
-        resultados = {}
+        resultados = {{}}
         for linea in texto.split("\n"):
             linea = linea.strip()
             if not linea: continue
             partes = linea.split("|")
-            if len(partes) >= 3:
+            if len(partes) >= 2:
                 try:
                     idx = int(re.match(r'(\d+)', partes[0]).group(1)) - 1
                     desc_limpia = partes[1].strip()
-                    equipo = partes[2].strip()
-                    if desc_limpia:
+                    equipo = partes[2].strip() if len(partes) >= 3 else ""
+                    # Limpiar respuestas vacías
+                    equipo = "" if equipo.lower() in ("ninguno", "(ninguno)", "none", "-", "vacío", "(vacío)", "vacio", "(vacio)") else equipo
+                    if desc_limpia and desc_limpia.lower() not in ("ninguno", "(ninguno)"):
                         resultados[idx] = (desc_limpia, equipo)
                 except:
                     pass
         return resultados
     except:
-        return {}
+        return {{}}
+
 
 def separar_palabras_pegadas(texto, modelo=None):
     """Separa palabras pegadas usando Gemini si disponible, sino diccionario."""
@@ -474,7 +489,12 @@ CORRECCIONES_ORTOGRAFIA = {
 # ── Funciones ──────────────────────────────────────────────
 
 def limpiar_url(texto):
-    return re.sub(r'https?://\S+', '', texto).strip()
+    # Limpiar caracteres raros de Excel
+    texto = texto.replace('_x000D_', '').replace('\xa0', ' ')
+    # Limpiar URLs con guión antes
+    texto = re.sub(r'\s*-\s*https?://\S+', '', texto)
+    texto = re.sub(r'https?://\S+', '', texto)
+    return re.sub(r'\s+', ' ', texto).strip()
 
 def limpiar_codigo_interno(texto):
     """Elimina códigos internos tipo SEAL_EXHAUST_1974834.
@@ -925,26 +945,29 @@ if archivo:
             
             status_text.markdown(f"🤖 IA procesó **{len(descripciones_ia)}** descripciones")
             
-            # PASO 1B: detectar equipos con Groq en casos ambiguos
+            # PASO 1B: detectar equipos con Groq en TODAS las descripciones
             status_text.markdown("🔍 **Paso 1B/2:** Detectando referencias a equipos...")
-            indices_sin_equipo = []
-            descs_sin_equipo = []
+            indices_equipo = []
+            descs_equipo = []
             for i, row in df.iterrows():
                 desc = str(row[col_desc]).strip() if pd.notna(row[col_desc]) else ""
                 if not desc or desc == "nan": continue
-                _, _, necesita = extraer_equipo(desc)
-                if necesita:
-                    indices_sin_equipo.append(i)
-                    descs_sin_equipo.append(desc)
+                # Usar descripción ya procesada por IA si existe
+                desc_proc = descripciones_ia.get(i, desc)
+                indices_equipo.append(i)
+                descs_equipo.append(desc_proc)
             
             equipos_groq = {}
-            for batch_start in range(0, len(descs_sin_equipo), LOTE):
-                batch_idx = indices_sin_equipo[batch_start:batch_start+LOTE]
-                batch_desc = descs_sin_equipo[batch_start:batch_start+LOTE]
+            for batch_start in range(0, len(descs_equipo), LOTE):
+                batch_idx = indices_equipo[batch_start:batch_start+LOTE]
+                batch_desc = descs_equipo[batch_start:batch_start+LOTE]
                 resultados_eq = detectar_equipo_groq(modelo_ia, batch_desc)
                 for j, idx_orig in enumerate(batch_idx):
                     if j in resultados_eq:
                         equipos_groq[idx_orig] = resultados_eq[j]
+                prog_eq = min((batch_start + LOTE) / max(len(descs_equipo), 1), 1.0)
+                progress_bar.progress(0.5 + prog_eq * 0.25)
+            status_text.markdown(f"🔍 Equipos detectados en **{len(equipos_groq)}** descripciones")
 
         if not modelo_ia:
             equipos_groq = {}
@@ -955,7 +978,7 @@ if archivo:
             codigo = str(row[col_codigo]).strip()
             desc_original = str(row[col_desc]).strip() if pd.notna(row[col_desc]) else ""
 
-            progress_bar.progress(0.5 + (i + 1) / total * 0.5 if modelo_ia else (i + 1) / total)
+            progress_bar.progress(0.75 + (i + 1) / total * 0.25 if modelo_ia else (i + 1) / total)
             status_text.markdown(f"⚙️ Procesando **{i+1} de {total}**: `{codigo}`")
 
             if not desc_original or desc_original == "nan":
@@ -963,20 +986,19 @@ if archivo:
                 log_lines.append(f"⬜ [{i+1:03d}] {codigo} → Sin descripción")
             else:
                 # Si IA ya procesó esta descripción, usarla como base
-                if i in descripciones_ia:
-                    desc_para_procesar = descripciones_ia[i]
-                    corregida, errores, keywords, equipo, _ = procesar_descripcion(desc_para_procesar)
-                    if "separado" not in errores.lower():
-                        errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
-                else:
-                    corregida, errores, keywords, equipo, _ = procesar_descripcion(desc_original)
+                # Usar descripción procesada por IA si existe
+                desc_base = descripciones_ia.get(i, desc_original)
+                corregida, errores, keywords, equipo, _ = procesar_descripcion(desc_base)
+                if i in descripciones_ia and "separado" not in errores.lower():
+                    errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
                 
-                # Si Groq detectó equipo en casos ambiguos, usarlo
-                if not equipo and i in equipos_groq:
+                # Groq siempre tiene la última palabra sobre el equipo
+                if i in equipos_groq:
                     desc_groq, equipo_groq = equipos_groq[i]
+                    if desc_groq:
+                        corregida = desc_groq
                     if equipo_groq:
                         equipo = equipo_groq
-                        corregida = desc_groq
                 
                 resultados.append({"codigo": codigo, "original": desc_original, "errores": errores, "keywords": keywords, "corregida": corregida, "equipo": equipo})
                 icono = "⚠️" if keywords else ("✅" if errores == "Sin errores" else "✏️")
