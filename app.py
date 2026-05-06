@@ -335,33 +335,42 @@ Descripciones:
 def detectar_equipo_groq(modelo, descripciones):
     """Usa Groq para detectar y separar referencia a equipos en descripciones."""
     lista = "\n".join([f"{i+1}. {d}" for i, d in enumerate(descripciones)])
-    prompt = f"""Sos un experto en repuestos de maquinaria pesada (Caterpillar, Komatsu, SEM, Volvo, etc).
+    prompt = f"""Sos un experto en repuestos de maquinaria pesada (CAT, Komatsu, SEM, Volvo, etc).
 
-TAREA: Para cada descripción, identificar si menciona el equipo/máquina donde se usa el repuesto y extraer SOLO esa referencia.
+Para cada descripción de repuesto, identificá si menciona en qué equipo o máquina se usa.
+Devolvé SOLO la referencia al equipo. Si no hay equipo mencionado, devolvé vacío.
 
-REGLA: Devolvé SOLO la referencia al equipo (marca, modelo, tipo de máquina). Si no hay referencia a equipo, devolvé vacío.
+REGLAS IMPORTANTES:
+- Solo extraer marca/modelo/tipo de equipo (CAT 793, Cargador 972K, Excavadora 320, etc)
+- Si el nombre del equipo es PARTE del nombre del repuesto, NO extraer (ej: "Brazo de escobilla de motoniveladora" → vacío)
+- Si solo dice "Caterpillar" o "CAT" como marca genérica al final → extraer
+- Si dice "equipos varios CAT" o "equipos mineros" → extraer
+- Si dice "para freno", "para manguera", "para transmisión" → vacío (son partes, no equipos)
+- IMPORTANTE: Responder exactamente el número de items recibidos, en orden
 
 EJEMPLOS:
 "Bulón de acero (M10X1.25) Caterpillar" → Caterpillar
-"Válvula de solenoide de acero. Topadores D6" → Topadores D6
+"Válvula de solenoide. Topadores D6" → Topadores D6  
 "Conjunto del alternador, equipos varios CAT" → equipos varios CAT
 "Retén de caucho, mando final de Cargador SEM 636D" → Cargador SEM 636D
-"Desgarrador de acero. Para uso en Retroexcavadoras 420" → Retroexcavadoras 420
-"Medidor de nivel hidráulico. Aplica a Equipo Cargador" → Equipo Cargador
-"Chapa de acero protector en escape de cargador bajo perfil R1700G" → cargador bajo perfil R1700G
 "Filtro de aceite de cargador frontal 972K" → cargador frontal 972K
-"INTERRUPTOR ELECTRICO PARA EQUIPOS MINEROS" → EQUIPOS MINEROS
-"CINTURON DE SEGURIDAD PARA EQUIPOS MINEROS" → EQUIPOS MINEROS
-"acople de INOX, ADAPTADOR DE MANGUERA, cat 777 CAMION" → cat 777 CAMION
-"Sensor de presión Cat de 5V, gama 48-120 kPa" → (vacío)
-"BOMBA DE ENGRANAJES PARA FRENO" → (vacío)
-"Filtro de aceite de 10 micrones" → (vacío)
-"BRAZO DE ESCOBILLA LIMPIARABRISAS DE CABINA DE MOTONIVELADORA" → (vacío - motoniveladora es parte del nombre del repuesto)
+"CINTURON DE SEGURIDAD PARA EQUIPOS MINEROS" → equipos mineros
+"acople de INOX, cat 777 CAMION" → cat 777 CAMION
+"Sensor de presión Cat de 5V, 48-120 kPa" → 
+"BOMBA DE ENGRANAJES PARA FRENO" → 
+"BRAZO DE ESCOBILLA DE CABINA DE MOTONIVELADORA" → 
+"Turbocargador de motor diesel 3516 de camion 793C" → camion 793C
+"Carcasa de acero, parte de transmisión de cargador SEM655" → cargador SEM655
+"Medidor de nivel hidráulico. Aplica a Sistema de Equipo Cargador 966" → Equipo Cargador 966
+"Correa de caucho para poleas de motor de equipos mineros" → equipos mineros
+"ESPACIADOR DE ACERO APLICADO A SISTEMA ELECTRICO DE CAT 990H" → CAT 990H
 
-FORMATO — una línea por item, solo número y equipo:
-número|equipo (o vacío)
+FORMATO ESTRICTO — exactamente una línea por item, en el mismo orden:
+1|equipo o vacío
+2|equipo o vacío
+...
 
-Descripciones:
+Descripciones ({len(descripciones)} items):
 {lista}"""
 
     try:
@@ -372,18 +381,23 @@ Descripciones:
         )
         texto = response.choices[0].message.content.strip()
         resultados = {}
+        VACIOS = {"ninguno","(ninguno)","none","-","vacío","(vacío)","vacio",
+                  "(vacio)","","sin equipo","(sin equipo)","n/a","na","no"}
         for linea in texto.split("\n"):
             linea = linea.strip()
             if not linea: continue
             partes = linea.split("|")
-            if len(partes) >= 2:
+            if len(partes) >= 1:
                 try:
-                    idx = int(re.match(r'(\d+)', partes[0]).group(1)) - 1
-                    equipo = partes[1].strip()
-                    # Limpiar respuestas vacías
-                    VACIOS = {"ninguno","(ninguno)","none","-","vacío","(vacío)","vacio","(vacio)","","sin equipo","(sin equipo)"}
-                    equipo = "" if equipo.lower() in VACIOS else equipo
-                    resultados[idx] = ("", equipo)
+                    m = re.match(r'(\d+)[|.)]\s*(.*)', linea)
+                    if not m: continue
+                    idx = int(m.group(1)) - 1
+                    equipo = m.group(2).strip() if len(partes) >= 2 else ""
+                    equipo = partes[1].strip() if len(partes) >= 2 else ""
+                    equipo = "" if equipo.lower().strip("().") in VACIOS else equipo
+                    # Validar que el índice sea válido
+                    if 0 <= idx < len(descripciones):
+                        resultados[idx] = ("", equipo)
                 except:
                     pass
         return resultados
@@ -555,41 +569,21 @@ PATRON_CORTE_EQUIPO = re.compile(
     r')')
 
 # Nombres de equipos conocidos para detección directa
-NOMBRES_EQUIPOS = re.compile(r'''(?ix)
-    ,?\s*
-    (
-        cargador\s+frontal | cargador\s+a\s+frontal | minicargador |
-        excavadora | motoniveladora | topador | tractor\s+topador |
-        camion\s+minero | camion | volquete | retroexcavadora |
-        compactador | pavimentador | terminadora | motogenerador |
-        grupo\s+electr[oó]geno | generador | tren\s+de\s+potencia |
-        cargadora | manipulador | perforadora
-    )
-    [\s,]+
-    [\w\s\-\/\.]{1,30}         # modelo/número después del equipo
-''')
-
 def extraer_equipo(texto):
-    """Extrae referencia al equipo usando regex (A) y marca para Groq (B)."""
+    """Extrae referencia al equipo usando regex."""
     texto = texto.replace('\n', ' ').replace('\r', ' ')
     texto = re.sub(r'\s+', ' ', texto).strip()
     
-    # OPCION A1 — patrones de frase clave
     match = PATRON_CORTE_EQUIPO.search(texto)
     if match:
         desc_limpia = texto[:match.start()].strip().rstrip(',').strip()
         equipo = texto[match.start():].strip().lstrip(',').strip()
-        return desc_limpia, equipo, False  # False = no necesita Groq
+        # Validar que la descripción no quedó vacía o muy corta
+        if len(desc_limpia) > 5:
+            return desc_limpia, equipo, False
     
-    # OPCION A2 — nombre de equipo conocido al final
-    match2 = NOMBRES_EQUIPOS.search(texto)
-    if match2:
-        desc_limpia = texto[:match2.start()].strip().rstrip(',').strip()
-        equipo = texto[match2.start():].strip().lstrip(',').strip()
-        return desc_limpia, equipo, False
-    
-    # OPCION B — marcar para Groq si descripción es larga y compleja
-    necesita_groq = len(texto) > 40
+    # Marcar para Groq todas las descripciones largas
+    necesita_groq = len(texto) > 30
     return texto, "", necesita_groq
 
 def corregir_ortografia(texto):
@@ -986,8 +980,11 @@ if archivo:
                 # Groq detecta el equipo — solo actualizamos columna Equipo/Uso
                 if i in equipos_groq:
                     _, equipo_groq = equipos_groq[i]
-                    if equipo_groq:
+                    if equipo_groq and len(equipo_groq) < len(corregida):
                         equipo = equipo_groq
+                
+                # Siempre limpiar URL de la descripción corregida final
+                corregida = limpiar_url(corregida)
                 
                 resultados.append({"codigo": codigo, "original": desc_original, "errores": errores, "keywords": keywords, "corregida": corregida, "equipo": equipo})
                 icono = "⚠️" if keywords else ("✅" if errores == "Sin errores" else "✏️")
