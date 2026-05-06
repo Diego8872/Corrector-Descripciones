@@ -539,7 +539,8 @@ PATRON_CORTE_EQUIPO = re.compile(
     r'de\s+(?:cargador(?:a)?|excavadora|motoniveladora|topador)\s+de\s+(?:oruga|ruedas?|orugas?)\s+\d{2,4}[A-Z]?\b|'
     r'de\s+uso\s+en[.\s]+(?:maquinas?\s+cat(?:erpillar)?|mineria|camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
     r'(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:cat\s+)?(?:minero\s+)?\d{3,4}[A-Z]?\b|'
-    r'en\s+equipos?\s+(?:mineros?|cat(?:erpillar)?|varios)'
+    r'en\s+equipos?\s+(?:mineros?|cat(?:erpillar)?|varios)|'
+    r',?\s+cat\s+\d{3,4}[A-Z]?\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|maquina|máquina)'
     r')')
 
 # Nombres de equipos conocidos para detección directa
