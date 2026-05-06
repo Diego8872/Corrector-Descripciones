@@ -536,6 +536,7 @@ PATRON_CORTE_EQUIPO = re.compile(
     r'instalad[oa]\s+en\s+\w|'
     r'usad[oa]\s+en\s+\w|'
     r'aplicacion\s+(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
+    r'de\s+(?:cargador(?:a)?|excavadora|motoniveladora|topador)\s+de\s+(?:oruga|ruedas?|orugas?)\s+\d{2,4}[A-Z]?\b|'
     r'de\s+uso\s+en[.\s]+(?:maquinas?\s+cat(?:erpillar)?|mineria|camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)|'
     r'(?:camion(?:es)?|camión(?:es)?|volquete|cargador(?:a)?|excavadora|motoniveladora|topador|tractor|minicargador|compactador|pavimentador|generador|motogenerador|retroexcavadora|perforadora|maquina|máquina|equipos?)\s+(?:cat\s+)?(?:minero\s+)?\d{3,4}[A-Z]?\b|'
     r'en\s+equipos?\s+(?:mineros?|cat(?:erpillar)?|varios)'
@@ -610,8 +611,9 @@ def procesar_descripcion(descripcion_original):
     if desc != descripcion_original:
         errores_encontrados.append("URL eliminada")
 
-    # 2. Extraer referencia a equipo
-    desc, ref_equipo, necesita_groq_equipo = extraer_equipo(desc)
+    # 2. Limpiar códigos internos (extraer equipo se hace AL FINAL)
+    ref_equipo = ""
+    necesita_groq_equipo = False
 
     # 3. Limpiar códigos internos
     desc_sin_codigos, fue_solo_codigo = limpiar_codigo_interno(desc)
@@ -654,6 +656,9 @@ def procesar_descripcion(descripcion_original):
 
     # 8. Detectar palabras clave
     keywords = detectar_palabras_clave(desc)
+
+    # 9. Extraer referencia a equipo (sobre descripción ya corregida)
+    desc, ref_equipo, necesita_groq_equipo = extraer_equipo(desc)
 
     resumen = " | ".join(errores_encontrados) if errores_encontrados else "Sin errores"
     return desc, resumen, keywords, ref_equipo, necesita_groq_equipo
