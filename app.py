@@ -977,14 +977,22 @@ if archivo:
                 if i in descripciones_ia and "separado" not in errores.lower():
                     errores = ("separado/traducido por IA | " + errores).rstrip(" | ").replace("Sin errores", "").strip(" | ") or "separado/traducido por IA"
                 
-                # Groq detecta el equipo — solo actualizamos columna Equipo/Uso
+                # Groq detecta el equipo — actualizar Equipo/Uso Y limpiar descripción
                 if i in equipos_groq:
                     _, equipo_groq = equipos_groq[i]
                     if equipo_groq and len(equipo_groq) < len(corregida):
                         equipo = equipo_groq
+                        # Eliminar el equipo de la descripción corregida
+                        # Buscar el texto del equipo (case-insensitive) y cortar desde ahí
+                        idx_eq = corregida.lower().rfind(equipo_groq.lower()[:25])
+                        if idx_eq > 10:  # Solo cortar si queda algo antes
+                            corregida = corregida[:idx_eq].strip().rstrip(',.').strip()
                 
                 # Siempre limpiar URL de la descripción corregida final
                 corregida = limpiar_url(corregida)
+                # Asegurar capitalización
+                if corregida:
+                    corregida = corregida[0].upper() + corregida[1:]
                 
                 resultados.append({"codigo": codigo, "original": desc_original, "errores": errores, "keywords": keywords, "corregida": corregida, "equipo": equipo})
                 icono = "⚠️" if keywords else ("✅" if errores == "Sin errores" else "✏️")
