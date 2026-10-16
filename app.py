@@ -448,7 +448,7 @@ def segmentar_dp(texto):
                 dp[j] = dp[i] + [sub]
     return dp[n] if dp[n] is not None else [texto]
 
-PALABRAS_CLAVE = ["KIT", "CONJUNTO", "MANGUERA"]
+PALABRAS_CLAVE = ["KIT", "CONJUNTO", "MANGUERA", "GRUPO", "JUEGO", "ELEMENTO", "MOTOR"]
 PALABRAS_CLAVE_FRASE = ["ELEMENTO FILTRANTE"]
 
 CORRECCIONES_ORTOGRAFIA = {
